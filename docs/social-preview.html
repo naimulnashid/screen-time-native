@@ -1,0 +1,242 @@
+<!doctype html>
+<!--
+  Source of docs/social-preview.png, the repository's social preview
+  (GitHub: Settings > General > Social preview). 1280x640, GitHub's size.
+
+  The window on the right is ILLUSTRATIVE: drawn from a fixed seed, so every
+  render is identical, and it is nobody's usage. Keep it that way - no real
+  figures, app names or network names belong in an image shared publicly.
+
+  Render with Edge (the fonts are the app's own, under src\ScreenTime.App\Assets):
+
+    "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new
+      --disable-gpu --hide-scrollbars --force-device-scale-factor=1
+      --window-size=1280,640 --virtual-time-budget=3000
+      --user-data-dir=%TEMP%\social-preview-edge
+      --screenshot=%CD%\docs\social-preview.png %CD%\docs\social-preview.html
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Screen Time (native)</title>
+<style>
+  @font-face { font-family: Geist; font-weight: 100 900; src: url(../src/ScreenTime.App/Assets/Fonts/Geist-Variable.ttf) format('truetype'); }
+  @font-face { font-family: 'Geist Mono'; font-weight: 100 900; src: url(../src/ScreenTime.App/Assets/Fonts/GeistMono-Variable.ttf) format('truetype'); }
+
+  /* The app's own tokens (src/ScreenTime.App/Theme/Palette.cs). */
+  :root {
+    --bg: #000000;
+    --bg-panel: #0a0a0b;
+    --border: #1e1e22;
+    --border-strong: #2c2c33;
+    --text: #f5f5f7;
+    --text-dim: #a1a1aa;
+    --text-faint: #7c7c88;
+    --blue: #7c5cff;
+    --blue-bright: #9b82ff;
+    --blue-fill: #795af9;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    background:
+      radial-gradient(640px 440px at 84% 34%, rgba(124, 92, 255, 0.22), transparent 70%),
+      radial-gradient(460px 300px at 96% 100%, rgba(167, 149, 255, 0.08), transparent 70%),
+      var(--bg);
+    color: var(--text);
+    font-family: Geist, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .frame {
+    position: absolute; inset: 72px 64px 72px 72px;
+    display: grid; grid-template-columns: 1fr 548px; grid-template-rows: 100%; gap: 44px;
+  }
+
+  /* ---- left: the words ---- */
+  .copy { display: flex; flex-direction: column; justify-content: space-between; }
+
+  .pills { display: flex; gap: 10px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 7px 15px 7px 13px; border: 1px solid var(--border-strong); border-radius: 999px;
+    font-family: 'Geist Mono', monospace; font-size: 17px; color: var(--text-dim);
+    background: rgba(10, 10, 11, 0.7);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--blue); }
+
+  h1 { font-size: 88px; line-height: 0.98; font-weight: 700; letter-spacing: -0.045em; }
+  h1 .accent { color: var(--blue-bright); }
+  .tagline {
+    margin-top: 26px; max-width: 520px;
+    font-size: 26px; line-height: 1.36; font-weight: 400; color: var(--text-dim);
+    letter-spacing: -0.01em;
+  }
+  .tagline strong { color: var(--text); font-weight: 500; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    font-family: 'Geist Mono', monospace; font-size: 16px; color: var(--text-dim);
+    padding: 6px 12px; border-radius: 8px; background: #111114; border: 1px solid var(--border);
+  }
+
+  /* ---- right: an illustrative app window ---- */
+  .window {
+    align-self: center;
+    background: var(--bg); border: 1px solid var(--border-strong); border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 30px 80px rgba(0, 0, 0, 0.7);
+  }
+  .titlebar {
+    height: 34px; display: flex; align-items: center; gap: 9px; padding: 0 0 0 12px;
+    font-size: 12.5px; color: var(--text-dim); border-bottom: 1px solid var(--border);
+  }
+  .titlebar img { width: 16px; height: 16px; }
+  .titlebar .caption { margin-left: auto; display: flex; }
+  .titlebar .caption span { width: 40px; height: 34px; display: grid; place-items: center; color: var(--text-faint); font-size: 13px; }
+
+  .topbar {
+    height: 46px; display: flex; align-items: center; padding: 0 14px; gap: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab { font-size: 13px; color: var(--text-dim); padding: 5px 10px; border-radius: 7px; }
+  .tab.on { background: rgba(124, 92, 255, 0.16); color: var(--blue-bright); }
+  .range { margin-left: auto; display: flex; gap: 5px; }
+  .range span {
+    font-family: 'Geist Mono', monospace; font-size: 11.5px; color: var(--text-dim);
+    padding: 4px 9px; border-radius: 999px; border: 1px solid var(--border-strong);
+  }
+  .range span.on { background: var(--blue-fill); border-color: var(--blue-fill); color: #fff; }
+
+  .page { padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat {
+    background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px;
+  }
+  .stat .k { font-size: 9.5px; letter-spacing: 0.08em; color: var(--text-faint); font-weight: 500; }
+  .stat .v { margin-top: 5px; font-size: 26px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: 12px; color: var(--text-dim); font-weight: 500; margin-left: 3px; }
+  .stat:first-child .v { color: var(--blue-bright); }
+  .stat .bar { margin-top: 8px; height: 5px; border-radius: 3px; background: #16161a; overflow: hidden; }
+  .stat .bar i { display: block; height: 100%; background: var(--blue); border-radius: 3px; }
+
+  .card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .card-title { font-size: 13.5px; font-weight: 600; }
+  #trend { display: block; margin-top: 8px; }
+  #heat {
+    display: grid; grid-template-columns: repeat(26, 1fr); grid-template-rows: repeat(7, 11px);
+    gap: 3px; margin-top: 10px; grid-auto-flow: column;
+  }
+  #heat i { border-radius: 2.5px; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <section class="copy">
+    <div class="pills">
+      <span class="pill"><span class="dot"></span>Windows 10 / 11</span>
+      <span class="pill">Native app</span>
+    </div>
+    <div>
+      <h1>Screen Time<br><span class="accent">for Windows</span></h1>
+      <p class="tagline">
+        Which app you were in, and for how long - recorded every two seconds,
+        never a window title. <strong>Every day of it, on your own disk.</strong>
+      </p>
+    </div>
+    <div class="chips">
+      <span class="chip">WinUI 3</span>
+      <span class="chip">.NET 10</span>
+      <span class="chip">SQLite</span>
+      <span class="chip">Local only</span>
+      <span class="chip">MIT</span>
+    </div>
+  </section>
+
+  <section class="window" aria-hidden="true">
+    <div class="titlebar">
+      <img src="../src/ScreenTime.App/Assets/app-icon.svg" alt="">Screen Time
+      <span class="caption"><span>&#x2013;</span><span>&#x25A1;</span><span>&#x2715;</span></span>
+    </div>
+    <div class="topbar">
+      <span class="tab on">Overview</span><span class="tab">By App</span><span class="tab">Sync Status</span>
+      <span class="range"><span>7d</span><span>30d</span><span>90d</span><span class="on">All</span></span>
+    </div>
+    <div class="page">
+      <div class="stats" id="stats"></div>
+      <div class="card">
+        <div class="card-title">Daily trend</div>
+        <svg id="trend" width="490" height="92" viewBox="0 0 490 92"></svg>
+      </div>
+      <div class="card">
+        <div class="card-title">Activity</div>
+        <div id="heat"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  // Fixed seed: every render is identical, and none of it is real usage.
+  let seed = 20261001;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+
+  document.getElementById('stats').innerHTML = [
+    ['TODAY', '6h 42', 'm', 0.28], ['DAILY AVERAGE', '8h 7', 'm', 0.34], ['RANGE TOTAL', '918h 48', 'm', 1],
+  ].map(([k, v, u, f]) => `
+    <div class="stat"><div class="k">${k}</div><div class="v">${v}<small>${u}</small></div>
+    <div class="bar"><i style="width:${Math.max(6, f * 100)}%"></i></div></div>`).join('');
+
+  // Trend: a weekly rhythm, noise and a few spikes, as a smoothed area.
+  const N = 56, W = 490, H = 92, PAD = 4;
+  const ys = [];
+  for (let i = 0; i < N; i++) {
+    const weekly = 0.34 + 0.16 * Math.sin((i / 7) * Math.PI * 2 + 0.9);
+    const drift = 0.1 * Math.sin(i / 12);
+    const spike = 0;
+    ys.push(Math.min(1, Math.max(0.05, weekly + drift + spike + (rand() - 0.5) * 0.12)));
+  }
+  const pts = ys.map((v, i) => [PAD + (i / (N - 1)) * (W - 2 * PAD), H - 4 - v * (H - 14)]);
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${p2[0]},${p2[1]}`;
+  }
+  const last = pts[pts.length - 1];
+  const spikes = '';
+  document.getElementById('trend').innerHTML = `
+    <defs>
+      <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#7c5cff" stop-opacity="0.42"/>
+        <stop offset="100%" stop-color="#7c5cff" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <line x1="0" y1="${H - 0.5}" x2="${W}" y2="${H - 0.5}" stroke="#1e1e22"/>
+    <line x1="0" y1="${H / 2}" x2="${W}" y2="${H / 2}" stroke="#141418" stroke-dasharray="3 5"/>
+    <path d="${d} L${last[0]},${H} L${pts[0][0]},${H} Z" fill="url(#fill)"/>
+    <path d="${d}" fill="none" stroke="#9b82ff" stroke-width="2.2" stroke-linejoin="round"/>
+    ${spikes}`;
+
+  // Heat map: the app's violet ramp, one cell per day, weeks as columns. The
+  // first weeks are outlined - "never recorded", as the app draws them.
+  const RAMP = ['#131519', '#241a5c', '#33228a', '#4c33bd', '#7c5cff', '#a795ff'];
+  const heat = document.getElementById('heat');
+  for (let week = 0; week < 26; week++) {
+    for (let day = 0; day < 7; day++) {
+      const cell = document.createElement('i');
+      if (week < 5) {
+        cell.style.border = '1px solid #1c1c21';
+      } else {
+        const busy = 0.46 + 0.2 * Math.sin(week / 3.1) + (day >= 5 ? 0.1 : 0);
+        const level = Math.max(1, Math.min(5, Math.round(busy * 5 + (rand() - 0.5) * 3.2)));
+        cell.style.background = RAMP[level];
+      }
+      heat.appendChild(cell);
+    }
+  }
+</script>
+</body>
+</html>

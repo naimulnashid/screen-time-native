@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+artifacts/
+publish/
+TestResults/
+*.user
+.vs/
+
+# Usage data must never be committed: it is a record of what ran on a real
+# machine and when. The database, SRUM copies, exports and logs all stay out.
+*.db
+*.db-wal
+*.db-shm
+*.csv
+*.log
+demo-data/
+
+# Screenshots taken while developing can show real usage. Anchored: the
+# README's own, made from invented data, live in docs/screenshots/.
+/screenshots/

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Screen Time">
+  <!-- True-black tile so the mark keeps its own ground on a light taskbar. -->
+  <rect width="32" height="32" rx="7" fill="#000000"/>
+  <rect x="0.5" y="0.5" width="31" height="31" rx="6.5" fill="none" stroke="#1e1e22"/>
+
+  <!-- A clock, not the sibling project's ascending bars.
+       The Data Usage apps sit in the same taskbar, so the marks have to differ in
+       SHAPE and not only in hue - a violet bar chart beside a blue one is two
+       blurs at 16px. A ring reads as a ring at any size. The web dashboard's mark.
+
+       Proportions are a legibility constraint, not taste. The ring stroke is 3
+       units (1.5px at 16px) because a 2-unit
+       ring greys out into the black tile, and the hands are near-white rather
+       than a second violet because two violets at 16px merge into a disc. -->
+  <circle cx="16" cy="16.5" r="9.5" fill="none" stroke="#7c5cff" stroke-width="3"/>
+  <path d="M16 16.5 V 10.5" stroke="#ece8ff" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M16 16.5 L 20.5 19.2" stroke="#ece8ff" stroke-width="2.6" stroke-linecap="round"/>
+</svg>

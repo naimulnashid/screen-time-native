@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <RootNamespace>ScreenTime.App</RootNamespace>
+    <AssemblyName>ScreenTime</AssemblyName>
+    <UseWinUI>true</UseWinUI>
+    <Platforms>x64</Platforms>
+    <Platform>x64</Platform>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Unpackaged and self-contained: no MSIX, no certificate, and no
+         dependency on whichever Windows App Runtime happens to be installed. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <!-- Not for MSIX (the app stays unpackaged): without this, `dotnet publish`
+         leaves out the app's own resources.pri and compiled XAML, and the
+         published build dies at startup with 0xC000027B while the Debug build
+         runs fine. -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- Program.cs is the entry point: it enforces a single instance. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The components, not the Microsoft.WindowsAppSDK meta-package, which
+         also pulls in the AI and ML components (~60 MB) this app never calls. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.9" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="2.3.12" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.1.9" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.DWrite" Version="2.1.0" />
+    <!-- The tray icon. The core package: H.NotifyIcon.WinUI depends on the 1.x
+         meta-package, which conflicts with the 2.x components above. -->
+    <PackageReference Include="H.NotifyIcon" Version="2.4.1" />
+    <!-- Every SVG logo is drawn through Svg.Skia: WinUI's SvgImageSource
+         supports a subset of SVG and silently draws nothing for the rest. -->
+    <PackageReference Include="Svg.Skia" Version="5.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ScreenTime.Core\ScreenTime.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Release output: English UI resources only, and no debug symbols -
+       SkiaSharp and HarfBuzz ship ~100 MB of native .pdb files. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <Target Name="DropSymbolsFromPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_PublishedSymbols Include="$(PublishDir)**\*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(_PublishedSymbols)" />
+  </Target>
+</Project>
