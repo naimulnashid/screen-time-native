@@ -1,5 +1,9 @@
 # Screen Time (native)
 
+[![CI](https://github.com/naimulnashid/screen-time-native/actions/workflows/ci.yml/badge.svg)](https://github.com/naimulnashid/screen-time-native/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/naimulnashid/screen-time-native)](https://github.com/naimulnashid/screen-time-native/releases/latest)
+[![MIT license](https://img.shields.io/github/license/naimulnashid/screen-time-native)](LICENSE)
+
 A native Windows app that keeps a **permanent history of which app you were
 using on this PC, and for how long**. Windows keeps no lasting record of it,
 and a Windows reset would erase one if it did. This app records the
