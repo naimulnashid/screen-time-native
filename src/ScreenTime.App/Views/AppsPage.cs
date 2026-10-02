@@ -95,7 +95,7 @@ public sealed class AppsPage(PageContext ctx) : IPage
             Sortable("Opens", "opens"),
             Sortable("Days", "days"),
             new("Share", Width: 250, Left: true),
-        ]) { MinWidth = 820, RowPadding = 12 };
+        ]) { RowPadding = 12 };
 
         foreach (var a in rows)
         {

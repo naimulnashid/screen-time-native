@@ -238,26 +238,41 @@ public static class AppActions
     /// A name cell: the mark, the name (a link when the app earns a page), a
     /// "system" badge for a Windows component, and the pencil on hover.
     /// </summary>
-    public static StackPanel NameCell(PageContext ctx, string key, string name, string baseName, bool system, bool detailed, double size = 15.5)
+    /// <remarks>
+    /// A Grid, not a horizontal StackPanel: a StackPanel offers its children
+    /// infinite width, so a long name never trims and widens the table
+    /// instead. Here the name's star column takes what the mark, badge and
+    /// pencil leave, trims to an ellipsis, and the tooltip carries it whole.
+    /// Left-aligned (as the table sets it), the Grid still sizes to its
+    /// content, so a short name keeps its badge and pencil beside it.
+    /// </remarks>
+    public static Grid NameCell(PageContext ctx, string key, string name, string baseName, bool system, bool detailed, double size = 15.5)
     {
         var state = ctx.State;
-        var cell = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 9.6, Background = Palette.TransparentBrush };
-        cell.Children.Add(AppIconView.Create(name, state.Colors, state.Icons, 18));
+        var cell = new Grid { ColumnSpacing = 9.6, Background = Palette.TransparentBrush };
+        void Add(FrameworkElement part, GridUnitType unit = GridUnitType.Auto)
+        {
+            cell.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, unit) });
+            part.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(part, cell.Children.Count);
+            cell.Children.Add(part);
+        }
+        Add(AppIconView.Create(name, state.Colors, state.Icons, 18));
         if (detailed)
         {
             var link = Ui.Link(name, () => ctx.Navigate(new Route(PageKind.App, key)), size, Palette.TextBrush);
             Ui.SetTip(link, $"{name} - open detail");
-            cell.Children.Add(link);
+            Add(link, GridUnitType.Star);
         }
         else
         {
             var text = Ui.Text(name, size);
             Ui.SetTip(text, $"{name} - under a minute recorded, too little for a detail page");
-            cell.Children.Add(text);
+            Add(text, GridUnitType.Star);
         }
-        if (system) cell.Children.Add(Ui.Badge("system", size: 11.2, padding: new Thickness(7, 1.5, 7, 2)));
+        if (system) Add(Ui.Badge("system", size: 11.2, padding: new Thickness(7, 1.5, 7, 2)));
         var pencil = Pencil(ctx, key, name, baseName);
-        cell.Children.Add(pencil);
+        Add(pencil);
         cell.PointerEntered += (_, _) => pencil.Opacity = 1;
         cell.PointerExited += (_, _) => { if (pencil.FocusState == FocusState.Unfocused) pencil.Opacity = 0; };
         AcceptLogoDrop(ctx, cell, name);

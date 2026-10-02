@@ -19,13 +19,13 @@ public sealed record Column(string Header, (string Label, string Text)? Tip = nu
 /// <summary>
 /// A data table in the dashboard's style: small uppercase headers, figures
 /// right-aligned in tabular digits, rows ruled faintly and lit on hover, and a
-/// footer row ruled a shade brighter. Wider than its panel, it scrolls sideways
-/// rather than squeezing.
+/// footer row ruled a shade brighter. It never scrolls sideways: it takes
+/// its panel's width, and the first column - the star one, holding a name -
+/// gives up the space, its text trimmed to an ellipsis. A cell whose text can
+/// be trimmed should carry its full text as a tooltip.
 /// </summary>
 public sealed class DataTable
 {
-    public double MinWidth { get; init; } = 640;
-
     /// <summary>Vertical padding of a body cell.</summary>
     public double RowPadding { get; init; } = 13;
     private readonly Grid _grid = new();
@@ -138,17 +138,10 @@ public sealed class DataTable
 
     public int RowCount => _row - 1;
 
-    /// <summary>The table in its sideways scroller.</summary>
-    public ScrollViewer Build()
-    {
-        _grid.MinWidth = MinWidth;
-        return new ScrollViewer
-        {
-            Content = _grid,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollMode = ScrollMode.Auto,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            VerticalScrollMode = ScrollMode.Disabled,
-        };
-    }
+    /// <summary>
+    /// The table, at its panel's width. Not in a ScrollViewer: one offers its
+    /// content infinite width, so the star column grew to the longest name and
+    /// a single long one put a scroll bar under the whole table.
+    /// </summary>
+    public Grid Build() => _grid;
 }

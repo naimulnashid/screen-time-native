@@ -104,7 +104,13 @@ public sealed class AppDetailPage(PageContext ctx, string key) : IPage
         // So a merge is never silent: a versioned WindowsApps folder folds
         // into one app, and the day a merge is wrong, this is where it shows.
         var ids = new DataTable([new("Recorded identity"), new("Time")]) { RowPadding = 10 };
-        foreach (var id in app.Identities) ids.AddRow([Parts.MonoCell(id.Path, Palette.TextMutedBrush, 13), DataTable.Cell(Format.Duration(id.Ms))]);
+        foreach (var id in app.Identities)
+        {
+            // Trimmed when the panel is narrower than the path; the tip has it whole.
+            var path = Parts.MonoCell(id.Path, Palette.TextMutedBrush, 13);
+            Ui.SetTip(path, id.Path);
+            ids.AddRow([path, DataTable.Cell(Format.Duration(id.Ms))]);
+        }
         var merged = new StackPanel();
         merged.Children.Add(ids.Build());
         if (app.Identities.Count == 1)

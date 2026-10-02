@@ -244,7 +244,7 @@ public sealed class SyncPage(PageContext ctx) : IPage
 
         var table = new DataTable([
             new("Started"), new("Status", Left: true), new("Spans"), new("New"), new("Already saved"), new("Took"), new("Backup", Left: true),
-        ]) { MinWidth = 760, RowPadding = 11 };
+        ]) { RowPadding = 11 };
         foreach (var r in data.Runs)
         {
             var status = Ui.Badge(r.Status, r.Status == "success" ? Ui.BadgeKind.Ok : r.Status == "failed" ? Ui.BadgeKind.Bad : Ui.BadgeKind.Plain);
@@ -291,7 +291,7 @@ public sealed class SyncPage(PageContext ctx) : IPage
     /// <summary>The one scheduled task, as Windows reports it.</summary>
     private Border TaskPanel()
     {
-        var table = new DataTable([new("Task"), new("Runs as", Left: true), new("Started"), new("State"), new("Last result")]) { MinWidth = 760, RowPadding = 11 };
+        var table = new DataTable([new("Task"), new("Runs as", Left: true), new("Started"), new("State"), new("Last result")]) { RowPadding = 11 };
         if (_task is not { Exists: true })
         {
             table.AddRow([DataTable.Cell(ScheduledTasks.SamplerTask, numeric: false), DataTable.Cell("you, not elevated", Palette.TextMutedBrush, numeric: false), DataTable.Cell("not registered", Palette.WarnBrush), null, null]);
