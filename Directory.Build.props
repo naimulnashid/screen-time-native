@@ -7,6 +7,6 @@
     <InvariantGlobalization>false</InvariantGlobalization>
     <Company>Screen Time Native</Company>
     <Product>Screen Time</Product>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
   </PropertyGroup>
 </Project>
