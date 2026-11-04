@@ -42,40 +42,57 @@ is one open, and leaving for another app and returning is two.
 ## Screenshots
 
 Every page, top to bottom, on an invented history (`screentime demo-data`) -
-nobody's real usage.
+nobody's real usage. App logos are not shipped: `--logos` borrows the ones
+you have added, for the demo's own apps only, and a fresh install shows each
+app's colour swatch until you add some. Each image follows your GitHub theme.
 
 <details open>
 <summary><b>Overview</b> - today, trend, activity, top and most opened apps by day, shape of the day, where the time went</summary>
 
-![Overview](docs/screenshots/overview.webp)
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/overview-light.webp">
+  <img src="docs/screenshots/overview.webp" alt="The overview, top to bottom: today, the daily average and the all-history total; the daily trend; a six-month activity heat map; top apps by day and most opened by day as stacked areas with logos in their legends and a 30-day range menu; active time by hour of day; and where the time went as a donut of active, locked, unattributed and asleep time beside a legend">
+</picture>
 
 </details>
 
 <details>
 <summary><b>Activity</b> - the full history as a heat map, in 26-week blocks</summary>
 
-![Activity](docs/screenshots/activity.webp)
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/activity-light.webp">
+  <img src="docs/screenshots/activity.webp" alt="The Activity page: every recorded day as a heat map in 26-week blocks on one colour scale, with outlined days that were never recorded">
+</picture>
 
 </details>
 
 <details>
 <summary><b>By App</b> - top apps, most opened, and every app as a table or a grid</summary>
 
-![By App](docs/screenshots/by-app.webp)
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/by-app-light.webp">
+  <img src="docs/screenshots/by-app.webp" alt="The By App page: the eight apps with the most time and the eight opened most as bar charts, above a table of every app with its logo, time, opens and active days, and the Table and Grid switch">
+</picture>
 
 </details>
 
 <details>
 <summary><b>App detail</b> - time and opens per day (with a range) and per hour, sessions, merged paths</summary>
 
-![App detail](docs/screenshots/app-detail.webp)
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/app-detail-light.webp">
+  <img src="docs/screenshots/app-detail.webp" alt="VS Code's page: total time, opens, typical and longest session; time and opens per day with a 30-day range menu; time and opens by hour of day; and the recorded path the app resolved from">
+</picture>
 
 </details>
 
 <details>
 <summary><b>Sync Status</b> - the sampler, the run history, and its task</summary>
 
-![Sync Status](docs/screenshots/sync-status.webp)
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/sync-status-light.webp">
+  <img src="docs/screenshots/sync-status.webp" alt="The Sync Status page: the sampler running, the last save and what is stored; the run history with one failed run and its error; and the sign-in task">
+</picture>
 
 </details>
 
@@ -171,9 +188,14 @@ dotnet test --project tests\ScreenTime.Core.Tests\ScreenTime.Core.Tests.csproj
 dotnet run --project src\ScreenTime.Cli -- status          # is the sampler recording?
 dotnet run --project src\ScreenTime.Cli -- stats --days 7  # totals and top apps
 dotnet run --project src\ScreenTime.Cli -- sample --out $env:TEMP\st --seconds 30   # a test run beside the real one
-dotnet run --project src\ScreenTime.Cli -- demo-data demo-data   # an invented history
+dotnet run --project src\ScreenTime.Cli -- demo-data demo-data --logos <your data folder>\logos   # an invented history
 & tools\Capture-Views.ps1 -Views 'overview=overview,0' -FullPage 1440
 ```
+
+The README's images are those captures (PNGs in the git-ignored
+`screenshots\`) as WebP (`ffmpeg -i <png> -c:v libwebp -quality 92 <webp>`),
+in `docs/screenshots/`, dark and `-light`. The demo's theme is `Theme` in
+`demo-data\local\app-settings.json`.
 
 ## License
 

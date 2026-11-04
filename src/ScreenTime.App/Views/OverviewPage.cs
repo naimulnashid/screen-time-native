@@ -154,9 +154,11 @@ public sealed class OverviewPage(PageContext ctx) : IPage
     ];
 
     /// <summary>
-    /// The four kinds as one bar and a legend. Unattributed is shown, never
-    /// hidden: it is time the sampler saw no foreground window and declined
-    /// to guess, and a growing share means it is not seeing the desktop.
+    /// The four kinds as a donut, active time in its centre, beside a legend
+    /// that gives each its time, share and meaning. Unattributed is shown,
+    /// never hidden: it is time the sampler saw no foreground window and
+    /// declined to guess, and a growing share means it is not seeing the
+    /// desktop. A donut rather than one bar since 0.2.1, at the owner's request.
     /// </summary>
     private static Microsoft.UI.Xaml.Controls.StackPanel KindsBody(KindTotals k)
     {
@@ -164,21 +166,50 @@ public sealed class OverviewPage(PageContext ctx) : IPage
         Brush[] fills = [Palette.AccentBrush, Palette.LockedBrush, Palette.UnknownBrush, Palette.AsleepBrush];
         var total = Math.Max(1, values.Sum());
 
-        var body = new Microsoft.UI.Xaml.Controls.StackPanel();
-        body.Children.Add(TwoPartBar(values.Select((v, i) => ((double)v / total, fills[i])).ToList()));
+        var split = new Grid { ColumnSpacing = 40 };
+        split.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        split.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        split.Children.Add(new DonutChart(
+            values.Select((v, i) => new DonutSlice(KindText[i].Label, v, fills[i])).ToList(), k.Active, "active")
+        { VerticalAlignment = VerticalAlignment.Center });
 
-        var legend = new WrapPanel { HorizontalSpacing = 26, VerticalSpacing = 10, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 16, 0, 0) };
+        var legend = new Grid { ColumnSpacing = 19, VerticalAlignment = VerticalAlignment.Center };
+        legend.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        legend.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        legend.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
         for (var i = 0; i < 4; i++)
         {
-            var item = new Microsoft.UI.Xaml.Controls.StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            item.Children.Add(new Border { Width = 11, Height = 11, CornerRadius = new CornerRadius(3), Background = fills[i], BorderBrush = Palette.BorderBrush, BorderThickness = new Thickness(1), VerticalAlignment = VerticalAlignment.Center });
-            item.Children.Add(Ui.Text(KindText[i].Label, 15, 400, Palette.TextMutedBrush));
-            item.Children.Add(Ui.Text(Format.Duration(values[i]), 15, 500, numeric: true));
-            Ui.SetTip(item, KindText[i].Hint);
-            legend.Children.Add(item);
-        }
-        body.Children.Add(legend);
+            legend.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var name = new Grid { ColumnSpacing = 11, Margin = new Thickness(0, 8, 0, 8) };
+            name.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            name.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            name.Children.Add(new Border { Width = 12, Height = 12, CornerRadius = new CornerRadius(3), Background = fills[i], BorderBrush = Palette.BorderBrush, BorderThickness = new Thickness(1), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 5, 0, 0) });
+            var words = new Microsoft.UI.Xaml.Controls.StackPanel();
+            words.Children.Add(Ui.Text(KindText[i].Label, 15.5, 500));
+            words.Children.Add(Ui.Text(KindText[i].Hint, 13, 400, Palette.TextFaintBrush, wrap: true));
+            Grid.SetColumn(words, 1);
+            name.Children.Add(words);
+            Grid.SetRow(name, i);
+            legend.Children.Add(name);
 
+            var time = Ui.Text(Format.Duration(values[i]), 15.5, 600, numeric: true);
+            time.VerticalAlignment = VerticalAlignment.Center;
+            time.HorizontalAlignment = HorizontalAlignment.Right;
+            Grid.SetRow(time, i);
+            Grid.SetColumn(time, 1);
+            legend.Children.Add(time);
+            var pct = Ui.Text(Format.Percent((double)values[i] / total * 100), 15.5, 400, Palette.TextMutedBrush, numeric: true);
+            pct.VerticalAlignment = VerticalAlignment.Center;
+            pct.HorizontalAlignment = HorizontalAlignment.Right;
+            Grid.SetRow(pct, i);
+            Grid.SetColumn(pct, 2);
+            legend.Children.Add(pct);
+        }
+        Grid.SetColumn(legend, 1);
+        split.Children.Add(legend);
+
+        var body = new Microsoft.UI.Xaml.Controls.StackPanel();
+        body.Children.Add(split);
         if (k.UnknownShare >= 10)
         {
             var warn = Ui.Text($"{Format.Percent(k.UnknownShare)} of tracked time is unattributed - the sampler saw no foreground window and declined to guess. A large or growing share means it is not seeing the desktop properly, not that the machine was idle.", 15, 400, Palette.WarnBrush, wrap: true);
@@ -186,21 +217,5 @@ public sealed class OverviewPage(PageContext ctx) : IPage
             body.Children.Add(warn);
         }
         return body;
-    }
-
-    /// <summary>A 16px rounded bar split into parts, each growing in from the left.</summary>
-    public static Grid TwoPartBar(IReadOnlyList<(double Fraction, Brush Fill)> parts)
-    {
-        var track = new Grid { Height = 16, CornerRadius = new CornerRadius(8), Background = Palette.InsetBrush };
-        var row = new Microsoft.UI.Xaml.Controls.StackPanel { Orientation = Orientation.Horizontal };
-        track.Children.Add(row);
-        var fills = parts.Select(p => new Border { Background = p.Fill }).ToList();
-        foreach (var f in fills) row.Children.Add(f);
-        track.SizeChanged += (_, e) =>
-        {
-            for (var i = 0; i < parts.Count; i++) fills[i].Width = Math.Max(0, parts[i].Fraction) * e.NewSize.Width;
-        };
-        for (var i = 0; i < fills.Count; i++) Ui.GrowX(fills[i], 800, i * 120);
-        return track;
     }
 }

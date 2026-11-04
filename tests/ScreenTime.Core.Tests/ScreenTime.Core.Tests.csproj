@@ -9,7 +9,7 @@
   <ItemGroup>
     <!-- Runs on Microsoft.Testing.Platform (see global.json), which .NET 10's
          `dotnet test` requires; no VSTest adapter needed. -->
-    <PackageReference Include="xunit.v3" Version="4.0.1" />
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 
   <ItemGroup>

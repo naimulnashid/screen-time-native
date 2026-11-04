@@ -71,7 +71,9 @@ public static class DemoCommand
 
     public static int Run(string[] args)
     {
-        var outDir = Path.GetFullPath(args.Length > 0 ? args[0] : "demo-data");
+        var outDir = Path.GetFullPath(args.Length > 0 && !args[0].StartsWith("--", StringComparison.Ordinal) ? args[0] : "demo-data");
+        var logosArg = Array.IndexOf(args, "--logos");
+        var logosFrom = logosArg >= 0 && logosArg + 1 < args.Length ? args[logosArg + 1] : null;
         if (Directory.Exists(outDir))
         {
             if (Directory.EnumerateFileSystemEntries(outDir).Any() && !File.Exists(Path.Combine(outDir, Marker)))
@@ -126,11 +128,35 @@ public static class DemoCommand
         new Core.DeviceSettings { DeviceLabel = "My Laptop" }.Save(outDir);
         Console.WriteLine($"demo written to {outDir}");
         Console.WriteLine($"  {spans.Count} spans, {inserted} hour-segments over {HistoryDays} days");
+        if (logosFrom is not null) BorrowLogos(logosFrom, Core.AppPaths.LogosDir(outDir));
         Console.WriteLine($"  point the app at it:  $env:SCREENTIME_DATA_DIR = '{outDir}'; $env:SCREENTIME_LOCAL_DIR = '{Path.Combine(outDir, "local")}'");
         return 0;
     }
 
     private static string AppPaths(string dataDir) => Core.AppPaths.DatabasePath(dataDir);
+
+    /// <summary>
+    /// Copies, from <paramref name="from"/>, the logo of each demo app that has
+    /// one there, matched as the app matches them (<see cref="Core.Naming.AppIcons"/>:
+    /// case and spaces ignored, aliases followed), so the screenshots show
+    /// logos. A logo is a generic mark, not usage; only the demo's own apps'
+    /// files are copied, and the demo folder is gitignored, so none ship.
+    /// The web Data Usage Tracker's screenshots borrow logos the same way.
+    /// </summary>
+    private static void BorrowLogos(string from, string to)
+    {
+        var map = Core.Naming.AppIcons.Map(from);
+        Directory.CreateDirectory(to);
+        var names = Apps.Select(a => Core.Naming.AppNames.Resolve(a.Path).Name).Distinct().ToList();
+        var copied = 0;
+        foreach (var name in names)
+        {
+            if (Core.Naming.AppIcons.Find(map, name) is not { } icon) continue;
+            File.Copy(icon.Path, Path.Combine(to, Path.GetFileName(icon.Path)), overwrite: true);
+            copied++;
+        }
+        Console.WriteLine($"  logos for {copied} of {names.Count} apps, from {from}");
+    }
 
     /// <summary>Work blocks on weekdays, a shorter afternoon and evening at weekends; locked between, asleep around.</summary>
     private static List<Span> Day(DateTime start, bool weekend, DateTime now)

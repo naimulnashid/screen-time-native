@@ -165,6 +165,13 @@ public static class Palette
     public static readonly SolidColorBrush MenuHoverBrush = new();
     public static readonly SolidColorBrush MenuPressedBrush = new();
 
+    /// <summary>
+    /// Faint text set straight on the PAGE, not on a card: the footer. Dark
+    /// keeps TextFaint. Light's TextFaint is 4.2:1 on the #e6e6ea page, under
+    /// WCAG AA's 4.5:1 (measured 2026-11-04), so it takes #5f5f6a, 5.1:1.
+    /// </summary>
+    public static readonly SolidColorBrush PageFaintBrush = new();
+
     public static readonly SolidColorBrush AccentBrush = new();
     public static readonly SolidColorBrush AccentBrightBrush = new();
     public static readonly SolidColorBrush AccentDimBrush = new();
@@ -230,6 +237,7 @@ public static class Palette
         HoverWashBrush.Color = _t.HoverWash;
         MenuHoverBrush.Color = IsLight ? _t.HoverWash : Hex("#ffffff", 0.06);
         MenuPressedBrush.Color = IsLight ? WithAlpha(_t.Text, 0.06) : Hex("#ffffff", 0.04);
+        PageFaintBrush.Color = IsLight ? Hex("#5f5f6a") : _t.TextFaint;
         AccentBrush.Color = _t.Accent;
         AccentBrightBrush.Color = _t.AccentBright;
         AccentDimBrush.Color = WithAlpha(_t.Accent, _t.AccentDim);

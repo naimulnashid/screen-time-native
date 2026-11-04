@@ -61,8 +61,9 @@ public static class Program
                 Copy the web dashboard's laptop history, up to where this sampler began.
             screentime names
                 Every recorded identity resolved, and any two apps sharing a display name.
-            screentime demo-data <dir>
+            screentime demo-data <dir> [--logos <logos dir>]
                 An invented history for screenshots. Prints the variables to point the app at it.
+                --logos copies in the demo apps' logos from that folder (a mark, not usage).
             screentime where
                 Where the data, the sampler and the logs live.
             """);

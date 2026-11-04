@@ -334,8 +334,8 @@ public sealed partial class MainWindow : Window
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.Children.Add(Ui.Text("Local only · no telemetry, no outbound requests", 13, 400, Palette.TextFaintBrush));
-        var right = Ui.Text($"© 2026 Naimul Nashid · v{typeof(MainWindow).Assembly.GetName().Version?.ToString(3)}", 13, 400, Palette.TextFaintBrush);
+        grid.Children.Add(Ui.Text("Local only · no telemetry, no outbound requests", 13, 400, Palette.PageFaintBrush));
+        var right = Ui.Text($"© 2026 Naimul Nashid · v{typeof(MainWindow).Assembly.GetName().Version?.ToString(3)}", 13, 400, Palette.PageFaintBrush);
         Grid.SetColumn(right, 1);
         grid.Children.Add(right);
         return new Border
