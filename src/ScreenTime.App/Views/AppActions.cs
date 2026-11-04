@@ -267,7 +267,26 @@ public static class AppActions
     {
         var stack = new StackPanel { Width = 300, Spacing = 10 };
         stack.Children.Add(Ui.Text($"Count {name} as part of", 14, 600, wrap: true));
-        var box = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Choose an app", FontFamily = Fonts.Sans };
+        // A list in the flyout, not a ComboBox: a ComboBox's drop-down is a
+        // popup opened from this flyout's popup, and scrolling it with a long
+        // list hung the UI thread at full CPU (measured on 162 apps, 0.2.1).
+        var box = new ListView
+        {
+            SelectionMode = ListViewSelectionMode.Single,
+            MaxHeight = 280,
+            FontFamily = Fonts.Sans,
+            BorderBrush = Palette.BorderBrush,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(0, 4, 0, 4),
+        };
+        box.Resources["ListViewItemBackgroundPointerOver"] = Palette.MenuHoverBrush;
+        box.Resources["ListViewItemBackgroundPressed"] = Palette.MenuPressedBrush;
+        box.Resources["ListViewItemBackgroundSelected"] = Palette.AccentDimBrush;
+        box.Resources["ListViewItemBackgroundSelectedPointerOver"] = Palette.AccentDimBrush;
+        box.Resources["ListViewItemBackgroundSelectedPressed"] = Palette.AccentDimBrush;
+        foreach (var state in new[] { "", "PointerOver", "Pressed" })
+            box.Resources[$"ListViewItemSelectionIndicator{state}Brush"] = Palette.AccentBrush;
         foreach (var o in others) box.Items.Add(o.Name);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, $"App to merge {name} into");
         stack.Children.Add(box);
