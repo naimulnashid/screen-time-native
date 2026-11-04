@@ -18,7 +18,7 @@ namespace ScreenTime.Core.Data;
 /// </remarks>
 public static class Schema
 {
-    public const int Version = 1;
+    public const int Version = 2;
 
     public const string Sql = """
         PRAGMA journal_mode = WAL;
@@ -94,6 +94,20 @@ public static class Schema
         CREATE TABLE IF NOT EXISTS app_colours (
           app_key    TEXT PRIMARY KEY,
           colour     TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        -- Apps hidden from the By App page, and apps merged into another
+        -- (version 2, 2026-11-04), keyed like app_renames. The web
+        -- dashboard's tables without its device column. See Naming/AppPrefs.cs.
+        CREATE TABLE IF NOT EXISTS app_hidden (
+          app_key    TEXT PRIMARY KEY,
+          hidden_at  TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS app_merges (
+          app_key    TEXT PRIMARY KEY,
+          into_key   TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );
         """;

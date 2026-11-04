@@ -152,7 +152,7 @@ public static class Program
         var apps = q.ByApp(scope);
         var k = o.Kinds;
         Console.WriteLine($"rows {Format.Count(q.RowCount())}, latest day {o.LatestDate}, {o.DaysWithData} days with data in {scope.Label}");
-        Console.WriteLine($"latest {Format.Duration(o.Latest)} | average {Format.Duration(o.DailyAverage)} | range {Format.Duration(o.RangeTotal)}");
+        Console.WriteLine($"latest {Format.Duration(o.Latest)} | average {Format.Duration(o.DailyAverage)} | range {Format.Duration(o.Total)}");
         Console.WriteLine($"active {Format.Duration(k.Active)}, locked {Format.Duration(k.Locked)}, unattributed {Format.Duration(k.Unknown)} ({Format.Percent(k.UnknownShare)}), asleep {Format.Duration(k.Gap)}");
         Console.WriteLine($"{apps.Apps.Count} apps, {apps.Apps.Count(a => a.Listed)} listed, {apps.Apps.Count(a => a.Detailed)} with a detail page");
         foreach (var a in apps.Apps.Take(15)) Console.WriteLine($"  {a.Name,-32} {Format.Duration(a.Ms),9} {Format.Percent(a.Share),7} {a.Opens,6} opens {a.Days,4} days");

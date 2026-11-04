@@ -16,6 +16,8 @@ public sealed class ActivityPage(PageContext ctx) : IPage
 {
     private List<(string Date, long Total)> _days = [];
 
+    public Route Back { get; } = new(PageKind.Overview);
+
     public void Load() => _days = ctx.State.Queries!.HeatmapDays();
 
     public void Placeholder() => _days = Views.Placeholder.Heat();
@@ -23,7 +25,7 @@ public sealed class ActivityPage(PageContext ctx) : IPage
     public UIElement Build()
     {
         var page = new StackPanel();
-        var back = Ui.Link("← Overview", () => ctx.Navigate(new Route(PageKind.Overview)));
+        var back = Ui.Link("← Overview", () => ctx.Navigate(Back));
         back.Margin = new Thickness(0, 0, 0, 10);
         page.Children.Add(Parts.PageHead("Activity", "Every day recorded, six months to a row, on one colour scale.", before: back));
 

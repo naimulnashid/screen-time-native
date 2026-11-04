@@ -79,6 +79,28 @@ public static class Stack
     }
 }
 
+/// <summary>Which days the Daily trend marks as well above trend.</summary>
+/// <remarks>
+/// 1.5x the mean of the RECORDED days (an unrecorded day is no evidence of a
+/// quiet one), the web dashboard's <c>spikeThreshold()</c>. Data Usage marks
+/// 2.5x, but bytes have no ceiling and a day of screen time cannot pass 24
+/// hours: measured there 2026-11-03, no day on the laptop reached 1.6x its
+/// mean, so 2.5x would never mark one.
+/// </remarks>
+public static class Trend
+{
+    public const double SpikeFactor = 1.5;
+
+    /// <summary>The value above which a day is marked, or null with under three recorded days to compare.</summary>
+    public static long? SpikeThreshold(IEnumerable<DailyPoint> points)
+    {
+        var recorded = points.Where(p => p.Ms is not null).Select(p => p.Ms!.Value).ToList();
+        if (recorded.Count < 3) return null;
+        var mean = recorded.Average();
+        return mean > 0 ? (long)(mean * SpikeFactor) : null;
+    }
+}
+
 /// <summary>
 /// Which apps the By App table lists before "Show all" is pressed. An app is
 /// listed with at least 10 minutes in the range, OR 30+ opens spread over 5+

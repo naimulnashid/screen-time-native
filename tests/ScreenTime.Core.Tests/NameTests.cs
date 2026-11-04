@@ -102,7 +102,7 @@ public class NameTests
     public void RenamesAreCheckedAgainstEveryApp()
     {
         using var db = new TestDb();
-        var current = new Dictionary<string, string> { ["exe:code"] = "VS Code", ["exe:chrome"] = "Google Chrome" };
+        var current = new Dictionary<string, (string, string)> { ["exe:code"] = ("VS Code", "VS Code"), ["exe:chrome"] = ("Google Chrome", "Google Chrome") };
         Assert.Equal(RenameError.Taken, Renames.Save(db.Conn, "exe:code", "google chrome", current, "VS Code").Error);
         Assert.Equal(RenameError.Reserved, Renames.Save(db.Conn, "exe:code", "Other", current, "VS Code").Error);
         Assert.Equal(RenameError.UnknownApp, Renames.Save(db.Conn, "exe:nope", "X", current, "X").Error);
@@ -111,6 +111,18 @@ public class NameTests
         // An empty name restores the original.
         Renames.Save(db.Conn, "exe:code", "", current, "VS Code");
         Assert.Empty(Renames.Read(db.Conn));
+    }
+
+    [Fact]
+    public void ResettingARenameCannotGiveTwoAppsOneName()
+    {
+        using var db = new TestDb();
+        // Code was renamed away from "VS Code", then Chrome took that name.
+        var current = new Dictionary<string, (string, string)> { ["exe:code"] = ("Editor", "VS Code"), ["exe:chrome"] = ("VS Code", "Google Chrome") };
+        Assert.Equal(RenameError.Taken, Renames.Save(db.Conn, "exe:code", "", current, "VS Code").Error);
+        // A clash that predates any rename still lets the reset through.
+        var plain = new Dictionary<string, (string, string)> { ["exe:code"] = ("Editor", "Code"), ["exe:other"] = ("Code", "Code") };
+        Assert.Equal(RenameError.None, Renames.Save(db.Conn, "exe:code", "", plain, "Code").Error);
     }
 
     [Fact]

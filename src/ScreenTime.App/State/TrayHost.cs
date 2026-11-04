@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Runtime.InteropServices;
 using H.NotifyIcon.Core;
 using ScreenTime.Core.View;
 
@@ -77,8 +78,46 @@ public sealed class TrayHost : IDisposable
             if (e.MouseEvent is MouseEvent.IconLeftMouseUp or MouseEvent.IconDoubleClick) state.OnUi(open);
         };
         _tray.Create();
+        try
+        {
+            AllowDarkModeForWindow(_tray.MessageWindow.Handle, true);
+        }
+        catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException)
+        {
+        }
 
         state.Changed += () => UpdateToolTip(state);
+    }
+
+    // Undocumented uxtheme ordinals, stable since Windows 10 1903, which
+    // Explorer and Notepad++ use for the same job: no public API themes a
+    // Win32 menu. Ported from Data Usage Native, which took them from AI Usage
+    // Native, where they were verified.
+    [DllImport("uxtheme.dll", EntryPoint = "#133")]
+    private static extern bool AllowDarkModeForWindow(IntPtr hwnd, bool allow);
+
+    [DllImport("uxtheme.dll", EntryPoint = "#135")]
+    private static extern int SetPreferredAppMode(int mode);
+
+    [DllImport("uxtheme.dll", EntryPoint = "#136")]
+    private static extern void FlushMenuThemes();
+
+    /// <summary>
+    /// The menu is a Win32 one (TrackPopupMenuEx), so it follows neither
+    /// WinUI's RequestedTheme nor Windows' app mode on its own. This sets it
+    /// for the whole process to the app's resolved theme, "system" included.
+    /// </summary>
+    public static void ApplyMenuTheme(bool light)
+    {
+        try
+        {
+            SetPreferredAppMode(light ? 3 : 2); // ForceLight : ForceDark
+            FlushMenuThemes();
+        }
+        catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException)
+        {
+            // An older Windows: the menu keeps the system's look.
+        }
     }
 
     public void SyncChecks(UiSettings settings)

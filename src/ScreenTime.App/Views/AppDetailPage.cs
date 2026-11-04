@@ -9,27 +9,33 @@ using Microsoft.UI.Xaml.Controls;
 namespace ScreenTime.App.Views;
 
 /// <summary>
-/// One app over time: Total, Opens, Typical session, Longest; then time and
-/// opens per day, time and opens by hour, and Merged from.
+/// One app over all history: Total, Opens, Typical session, Longest; then time
+/// and opens per day under one range, time and opens by hour, Merged from, and
+/// Merged apps when the user merged any into this one.
 /// </summary>
 /// <remarks>
-/// <para>Time and opens are separate cards, read together: a tall time bar
-/// over a short opens bar is one long sitting, a short one over a tall one is
-/// checking. One chart with two scales would invite comparing heights that
-/// mean different things.</para>
-/// <para>"No such app" is a different answer from "nothing in this range": an
-/// app with no time in the current range still exists, and saying otherwise
-/// sends the reader hunting for a page that is right there.</para>
+/// <para>Time and opens are separate cards, read together, so they share ONE
+/// range: changing either menu moves both. A tall time bar over a short opens
+/// bar is one long sitting, a short one over a tall one is checking. One chart
+/// with two scales would invite comparing heights that mean different things.</para>
+/// <para>A merged app's page goes to its target's: a bookmark made before the
+/// merge still lands on the app it is now part of.</para>
 /// </remarks>
 public sealed class AppDetailPage(PageContext ctx, string key) : IPage
 {
     private AppDetail? _app;
     private bool _exists;
+    private string? _mergedInto;
+    private int _range = Scope.DefaultChartDays;
+
+    public Route Back { get; } = new(PageKind.Apps);
 
     public void Load()
     {
         var q = ctx.State.Queries!;
-        _app = q.AppDetailFor(key, ctx.State.Scope);
+        _mergedInto = q.MergedInto(key);
+        if (_mergedInto is not null) return;
+        _app = q.AppDetailFor(key, Scope.All);
         _exists = _app is not null || q.AppExists(key);
     }
 
@@ -42,21 +48,20 @@ public sealed class AppDetailPage(PageContext ctx, string key) : IPage
     public UIElement Build()
     {
         var page = new StackPanel();
-        var back = Ui.Link("← All apps", () => ctx.Navigate(new Route(PageKind.Apps)));
+        if (_mergedInto is { } into)
+        {
+            // After the build that is running now, not inside it.
+            ctx.Window.DispatcherQueue.TryEnqueue(() => ctx.Navigate(new Route(PageKind.App, into)));
+            return page;
+        }
+        var back = Ui.Link("← All apps", () => ctx.Navigate(Back));
         back.Margin = new Thickness(0, 0, 0, 10);
 
-        if (!_exists)
+        // All history: no rows means no such app; there is no range to be outside of.
+        if (!_exists || _app is null)
         {
             page.Children.Add(back);
             page.Children.Add(Parts.Empty("No such app", "Nothing in the history resolves to this app."));
-            return page;
-        }
-        if (_app is null)
-        {
-            page.Children.Add(back);
-            var all = Ui.Chip("Show everything", false);
-            all.Click += (_, _) => ctx.State.SetScope(Scope.All);
-            page.Children.Add(Parts.Empty("Nothing in this range", "This app has recorded time, but none inside the selected range.", all));
             return page;
         }
         // Re-checked here, not just on the table's link: a page of one bar says nothing.
@@ -70,10 +75,9 @@ public sealed class AppDetailPage(PageContext ctx, string key) : IPage
         var app = _app;
         var state = ctx.State;
         var mark = AppIconView.Create(app.Name, state.Colors, state.Icons, 30);
-        var pencil = AppActions.Pencil(ctx, app.Key, app.Name, app.BaseName, 17, alwaysVisible: true);
-        pencil.VerticalAlignment = VerticalAlignment.Center;
-        var head = Parts.PageHead(app.Name, $"{Format.Percent(app.Share)} of active time in this range{(app.System ? " · Windows component" : "")}", before: back, titleExtra: mark);
-        ((StackPanel)head.Children[1]).Children.Add(pencil);
+        // Rename, recolour and logo; no hide or merge, which belong to By App.
+        var menu = AppActions.Menu(ctx, app.Key, app.Name, app.BaseName, alwaysVisible: true, size: 17);
+        var head = Parts.PageHead(app.Name, $"{Format.Percent(app.Share)} of all active time{(app.System ? " · Windows component" : "")}", before: back, titleExtra: mark, titleAfter: menu);
         AppActions.AcceptLogoDrop(ctx, head, app.Name);
         page.Children.Add(head);
 
@@ -88,15 +92,31 @@ public sealed class AppDetailPage(PageContext ctx, string key) : IPage
         cards.Margin = new Thickness(0, 0, 0, 18.4);
         page.Children.Add(cards);
 
-        var heaviest = app.Daily.Count > 1 ? Stack.PeakOf(app.Daily, d => d.Ms ?? 0) : null;
-        page.Children.Add(Ui.Panel("Daily trend", $"Time in {app.Name} per day.",
-            heaviest is null ? null : Parts.Callout("Heaviest day", Format.DayShort(heaviest.Date), Format.Duration(heaviest.Ms ?? 0)),
-            app.Daily.Count > 1 ? BarChart.Daily(app.Daily, Measure.Time) : Parts.Note("Only one day of data for this app so far.")));
+        // ---- Time and opens per day, under one range counted back from the
+        // machine's newest day. The range's peak sits in the subtitle, beside
+        // the menu.
+        var from = _range >= Scope.AllDays ? "" : Days.Add(app.LatestDate, -(_range - 1));
+        bool In(DailyPoint d) => string.CompareOrdinal(d.Date, from) >= 0;
+        var daily = app.Daily.Where(In).ToList();
+        var opens = app.DailyOpens.Where(In).ToList();
+        UIElement Menu(string label) => Parts.RangeBox(_range, d =>
+        {
+            _range = d;
+            ctx.Redraw();
+        }, label);
+        UIElement None(int n) => Parts.Note(n == 1 ? "One day of data for this app in this range." : "Nothing recorded in this range.");
 
-        var mostOpens = app.DailyOpens.Count > 1 ? Stack.PeakOf(app.DailyOpens, d => d.Ms ?? 0) : null;
-        page.Children.Add(Ui.Panel("Opens per day", $"How many times {app.Name} was opened each day.",
-            mostOpens is null ? null : Parts.Callout("Most opens", Format.DayShort(mostOpens.Date), Format.Opens(mostOpens.Ms ?? 0)),
-            app.DailyOpens.Count > 1 ? BarChart.Daily(app.DailyOpens, Measure.Count) : Parts.Note("Only one day of data for this app so far.")));
+        var heaviest = Stack.PeakOf(daily, d => d.Ms ?? 0);
+        page.Children.Add(Ui.Panel("Daily trend",
+            $"Time in {app.Name} per day.{(heaviest is null ? "" : $" Heaviest day {Format.DayShort(heaviest.Date)}, {Format.Duration(heaviest.Ms ?? 0)}.")}",
+            Menu("Daily trend range"),
+            daily.Count > 1 ? BarChart.Daily(daily, Measure.Time) : None(daily.Count)));
+
+        var most = Stack.PeakOf(opens, d => d.Ms ?? 0);
+        page.Children.Add(Ui.Panel("Opens per day",
+            $"How many times {app.Name} was opened each day.{(most is null ? "" : $" Most {Format.DayShort(most.Date)}, {Format.Opens(most.Ms ?? 0)}.")}",
+            Menu("Opens per day range"),
+            opens.Count > 1 ? BarChart.Daily(opens, Measure.Count) : None(opens.Count)));
 
         page.Children.Add(OverviewPage.HourPanel(app.Hourly, Measure.Time, "Shape of the day", "When this app is usually open."));
         page.Children.Add(OverviewPage.HourPanel(app.HourlyOpens, Measure.Count, "When it gets opened", "The hour an open began, not the hours it went on for."));
@@ -120,6 +140,18 @@ public sealed class AppDetailPage(PageContext ctx, string key) : IPage
             merged.Children.Add(one);
         }
         page.Children.Add(Ui.Panel("Merged from", "Everything that resolved into this entry, so a merge is never silent.", null, merged));
+
+        if (app.Members.Count > 0)
+        {
+            var members = new DataTable([new("App", Left: true), new("Time"), new("", Width: 52)]) { RowPadding = 10 };
+            foreach (var m in app.Members)
+                members.AddRow([
+                    DataTable.Cell(m.Name, numeric: false),
+                    DataTable.Cell(Format.Duration(m.Ms)),
+                    AppActions.Separate(ctx, m.Key, m.Name),
+                ]);
+            page.Children.Add(Ui.Panel("Merged apps", "Apps you merged into this one. Their time and opens are counted here, on every page.", null, members.Build()));
+        }
         return page;
     }
 }

@@ -77,9 +77,9 @@ public class IngestTests
             TestDb.Span(TestDb.Noon(1), TestDb.Noon(1).AddHours(2), "gap"));
         var q = new UsageQueries(db.DbPath);
         var o = q.Overview(Scope.All);
-        Assert.Equal(50 * 60_000L, o.RangeTotal);
+        Assert.Equal(50 * 60_000L, o.Total);
         Assert.Equal(1, o.DaysWithData);
-        Assert.Equal(o.RangeTotal, o.DailyAverage);
+        Assert.Equal(o.Total, o.DailyAverage);
         Assert.Equal(10 * 60_000L, o.Kinds.Locked);
         Assert.Equal(60_000L, o.Kinds.Unknown);
         // The newest day WITH DATA anchors the range, not the gap day after it.
@@ -89,7 +89,7 @@ public class IngestTests
         Assert.Equal(["VS Code", "Google Chrome"], apps.Apps.Select(a => a.Name));
         // Two Code spans with the lock screen between them are two opens.
         Assert.Equal(2, apps.Apps[0].Opens);
-        Assert.Equal(o.RangeTotal, apps.Apps.Sum(a => a.Ms));
+        Assert.Equal(o.Total, apps.Apps.Sum(a => a.Ms));
 
         var detail = q.AppDetailFor("exe:code", Scope.All)!;
         Assert.Equal(40 * 60_000L, detail.Ms);

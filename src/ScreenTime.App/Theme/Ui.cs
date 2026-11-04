@@ -439,6 +439,50 @@ public static class Ui
         return button;
     }
 
+    /// <summary>
+    /// Gives every item of a menu, submenus included, hover and press fills
+    /// that follow the app's theme (see <see cref="Palette.MenuHoverBrush"/>).
+    /// Call once the items are added, on every <see cref="MenuFlyout"/>.
+    /// </summary>
+    public static MenuFlyout Menu(MenuFlyout flyout)
+    {
+        static void Style(IList<MenuFlyoutItemBase> items)
+        {
+            foreach (var item in items)
+            {
+                // Toggle and radio items read the Toggle keys; a submenu its own.
+                foreach (var kind in new[] { "MenuFlyoutItem", "ToggleMenuFlyoutItem", "MenuFlyoutSubItem" })
+                {
+                    item.Resources[$"{kind}BackgroundPointerOver"] = Palette.MenuHoverBrush;
+                    item.Resources[$"{kind}BackgroundPressed"] = Palette.MenuPressedBrush;
+                }
+                item.Resources["MenuFlyoutSubItemBackgroundSubMenuOpened"] = Palette.MenuHoverBrush;
+                if (item is MenuFlyoutSubItem sub) Style(sub.Items);
+            }
+        }
+        Style(flyout.Items);
+        return flyout;
+    }
+
+    /// <summary>
+    /// Gives a dialog the app's accent where WinUI would use Windows' own: the
+    /// primary button and a focused text field. Without it Save wears whatever
+    /// accent colour Windows is set to, beside a violet app. Returns the
+    /// dialog, for chaining.
+    /// </summary>
+    public static ContentDialog Accented(ContentDialog dialog)
+    {
+        var r = dialog.Resources;
+        foreach (var state in new[] { "", "PointerOver", "Pressed" })
+        {
+            r[$"AccentButtonBackground{state}"] = Palette.AccentFillBrush;
+            r[$"AccentButtonForeground{state}"] = Palette.OnAccentFillBrush;
+            r[$"AccentButtonBorderBrush{state}"] = Palette.AccentFillBrush;
+        }
+        r["TextControlBorderBrushFocused"] = Palette.AccentBrush;
+        return dialog;
+    }
+
     /// <summary>A text link in the accent colour, like "← All projects".</summary>
     public static HyperlinkButton Link(string text, Action onClick, double size = 14.5, Brush? brush = null)
     {

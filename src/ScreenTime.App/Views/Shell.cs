@@ -133,7 +133,7 @@ public static class Shell
             XamlRoot = ctx.Window.Content.XamlRoot,
             RequestedTheme = Palette.IsLight ? ElementTheme.Light : ElementTheme.Dark,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await Ui.Accented(dialog).ShowAsync() != ContentDialogResult.Primary) return;
         var device = DeviceSettings.Load(state.DataDir);
         device.DeviceLabel = string.IsNullOrWhiteSpace(name.Text) ? null : name.Text.Trim();
         state.SaveDevice(device);

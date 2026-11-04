@@ -22,8 +22,10 @@ namespace ScreenTime.App;
 /// PC it is installed on.
 /// </summary>
 /// <remarks>
-/// The top bar is the web's: page tabs on the left; Sync now, the range chips
-/// and the settings menu on the right.
+/// The top bar is the web's: page tabs on the left; Sync now and the settings
+/// menu on the right. The range chips that sat between them went in 0.2.0:
+/// every page covers all history, and the by-day charts carry a range menu
+/// of their own.
 /// </remarks>
 public sealed partial class MainWindow : Window
 {
@@ -33,7 +35,6 @@ public sealed partial class MainWindow : Window
     private readonly PageContext _ctx;
 
     private readonly Dictionary<PageKind, Button> _tabs = [];
-    private readonly StackPanel _chips = new() { Orientation = Orientation.Horizontal, Spacing = 7, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _sync;
     private readonly TextBlock _syncText = Ui.Text("Sync now", 15, 500, Palette.TextMutedBrush, selectable: false);
     private readonly Microsoft.UI.Xaml.Shapes.Ellipse _syncDot = new() { Width = 8, Height = 8, Fill = Palette.AccentBrush, VerticalAlignment = VerticalAlignment.Center };
@@ -69,6 +70,7 @@ public sealed partial class MainWindow : Window
         ConfigureWindow();
         BuildShell();
         Root.RequestedTheme = Palette.IsLight ? ElementTheme.Light : ElementTheme.Dark;
+        TrayHost.ApplyMenuTheme(Palette.IsLight);
 
         state.Changed += () =>
         {
@@ -111,6 +113,7 @@ public sealed partial class MainWindow : Window
     private void OnThemeChanged()
     {
         Root.RequestedTheme = Palette.IsLight ? ElementTheme.Light : ElementTheme.Dark;
+        TrayHost.ApplyMenuTheme(Palette.IsLight);
         PaintCaptionButtons();
         UpdateChrome();
         Rebuild(keepScroll: true);
@@ -216,7 +219,7 @@ public sealed partial class MainWindow : Window
         Root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
         // Title bar: draggable, the app's mark and name, room for the caption buttons.
-        var titleBar = new Grid { Background = Palette.BgBrush, Padding = new Thickness(16, 0, 150, 0) };
+        var titleBar = new Grid { Background = Palette.ChromeBrush, Padding = new Thickness(16, 0, 150, 0) };
         var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
         var icon = new Image { Width = 16, Height = 16 };
         title.Children.Add(icon);
@@ -271,6 +274,17 @@ public sealed partial class MainWindow : Window
             _ = _state.ReloadAsync();
         };
         Root.KeyboardAccelerators.Add(f5);
+
+        // Backspace follows the page's "←" link, as a browser's once did. A
+        // KeyDown handler rather than an accelerator, and never while a text
+        // field has focus, so editing a name still deletes.
+        Root.KeyDown += (_, e) =>
+        {
+            if (e.Key != Windows.System.VirtualKey.Back || _page?.Back is not { } back) return;
+            if (FocusManager.GetFocusedElement(Root.XamlRoot) is TextBox or PasswordBox or RichEditBox or NumberBox or AutoSuggestBox) return;
+            e.Handled = true;
+            Navigate(back);
+        };
 
         // Page zoom, with a browser's keys: Ctrl with =/+ (and Shift, which "+"
         // needs on most layouts), the numpad's + and -, and 0 to reset.
@@ -363,7 +377,6 @@ public sealed partial class MainWindow : Window
 
         var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
         right.Children.Add(_sync);
-        right.Children.Add(_chips);
         right.Children.Add(SettingsButton());
         Grid.SetColumn(right, 1);
         grid.Children.Add(right);
@@ -374,7 +387,7 @@ public sealed partial class MainWindow : Window
             MinHeight = 61,
             BorderBrush = Palette.BorderBrush,
             BorderThickness = new Thickness(0, 1, 0, 1),
-            Background = Palette.BgBrush,
+            Background = Palette.ChromeBrush,
             Child = grid,
         };
     }
@@ -444,19 +457,6 @@ public sealed partial class MainWindow : Window
             _syncDot.Fill = Palette.AccentBrush;
         };
         timer.Start();
-    }
-
-    private void BuildChips()
-    {
-        _chips.Children.Clear();
-        foreach (var days in Scope.Ranges)
-        {
-            var scope = new Scope(days);
-            var chip = Ui.Chip(scope.Label, scope == _state.Scope);
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(chip, scope.IsAll ? "All history" : $"Last {days} days");
-            chip.Click += (_, _) => _state.SetScope(scope);
-            _chips.Children.Add(chip);
-        }
     }
 
     private readonly TextBlock _zoomText = Ui.Text("", 14, 600, Palette.TextBrush, numeric: true, selectable: false);
@@ -619,7 +619,7 @@ public sealed partial class MainWindow : Window
         exit.Click += (_, _) => _exit();
         flyout.Items.Add(exit);
 
-        button.Flyout = flyout;
+        button.Flyout = Ui.Menu(flyout);
         return button;
     }
 
@@ -738,7 +738,6 @@ public sealed partial class MainWindow : Window
     private void UpdateChrome()
     {
         Title = $"{_state.Device.Label} · Screen Time";
-        BuildChips();
         foreach (var (kind, tab) in _tabs)
         {
             var active = kind == _route.Kind || (kind == PageKind.Apps && _route.Kind == PageKind.App) || (kind == PageKind.Overview && _route.Kind == PageKind.Activity);

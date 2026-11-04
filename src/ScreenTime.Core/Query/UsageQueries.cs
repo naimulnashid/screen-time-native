@@ -64,27 +64,63 @@ public sealed class UsageQueries(string databasePath, string? coloursPath = null
 
     private static string? S(SqliteDataReader r, int i) => r.IsDBNull(i) ? null : r.GetString(i);
 
-    /// <summary>A resolved app with the user's rename laid over it, and the name it had before.</summary>
-    public sealed record Named(string Key, string Name, string BaseName, bool System);
+    /// <summary>
+    /// A resolved app with the user's merge and rename laid over it, the name
+    /// it would have without the rename, and the app it was before any merge
+    /// (<see cref="SourceKey"/>, equal to <see cref="Key"/> when not merged).
+    /// </summary>
+    public sealed record Named(string Key, string Name, string BaseName, bool System, string SourceKey, string SourceName);
 
     /// <summary>
-    /// <see cref="AppNames.Resolve"/> with the user's renames applied. Every
-    /// query that shows a name goes through this, so a rename reaches tables,
-    /// charts, legends and the detail page from one place.
+    /// <see cref="AppNames.Resolve"/> with the user's merges and renames
+    /// applied (Naming/AppPrefs.cs, Naming/Renames.cs). Every query that
+    /// groups or names an app goes through this - never AppNames.Resolve
+    /// directly - so a merge or a rename reaches tables, charts, legends, opens
+    /// and the detail page from one place. A merged app takes its target's
+    /// key, name and system flag; <see cref="Named.SourceKey"/> keeps its own.
     /// </summary>
     private static Func<string, Named> Resolver(SqliteConnection db)
     {
         var renames = Renames.Read(db);
+        var merges = AppPrefs.ReadMerges(db);
+        // A target is named by its key alone, so its resolved form is looked
+        // up from a path that resolves to it - read only once a merge needs it.
+        Dictionary<string, ResolvedApp>? apps = null;
+        ResolvedApp? AppOf(string key)
+        {
+            if (apps is null)
+            {
+                apps = [];
+                foreach (var p in Rows(db, "SELECT DISTINCT app_path FROM windows_segments WHERE kind = 'app'", r => r.GetString(0)))
+                {
+                    var x = AppNames.Resolve(p);
+                    apps.TryAdd(x.Key, x);
+                }
+            }
+            return apps.GetValueOrDefault(key);
+        }
         var cache = new Dictionary<string, Named>();
         return path =>
         {
             if (cache.TryGetValue(path, out var hit)) return hit;
             var r = AppNames.Resolve(path);
-            var named = new Named(r.Key, renames.GetValueOrDefault(r.Key) ?? r.Name, r.Name, r.System);
+            var app = merges.TryGetValue(r.Key, out var into) && AppOf(into) is { } target ? target : r;
+            var named = new Named(app.Key, renames.GetValueOrDefault(app.Key) ?? app.Name, app.Name, app.System,
+                r.Key, renames.GetValueOrDefault(r.Key) ?? r.Name);
             cache[path] = named;
             return named;
         };
     }
+
+    /// <summary>The app a merged app now belongs to, or null when it is not merged.</summary>
+    public string? MergedInto(string key) => With(db => AppPrefs.ReadMerges(db).GetValueOrDefault(key));
+
+    /// <summary>
+    /// Every app key BEFORE the user's merges: what a hide or a merge may
+    /// name. <see cref="AppNamesByKey"/> folds merged apps into their targets.
+    /// </summary>
+    public HashSet<string> AppKeys() => With(db =>
+        Rows(db, "SELECT DISTINCT app_path FROM windows_segments WHERE kind = 'app'", r => AppNames.Resolve(r.GetString(0)).Key).ToHashSet());
 
     private static string? Newest(SqliteConnection db) => Scalar(db, "SELECT MAX(local_date) FROM windows_segments WHERE kind <> 'gap'") as string;
 
@@ -165,12 +201,20 @@ public sealed class UsageQueries(string databasePath, string? coloursPath = null
 
     // ---- Overview ---------------------------------------------------------------------------
 
+    /// <summary>
+    /// The Overview over <paramref name="scope"/> (the app passes All: pages
+    /// are not scoped). The two stacks come for EVERY range in the chart's
+    /// menu, from one read of all history, each ranking its own top apps -
+    /// slicing the all-time stack would draw last week through the year's leaders.
+    /// </summary>
     public OverviewData Overview(Scope scope) => With(db =>
     {
+        var empty = new Dictionary<int, StackData>();
         var newest = Newest(db);
-        if (newest is null) return new OverviewData(null, 0, 0, 0, 0, 0, KindTotals.Empty, [], [], StackData.Empty, StackData.Empty);
+        if (newest is null) return new OverviewData(null, null, 0, 0, 0, 0, 0, KindTotals.Empty, [], [], empty, empty);
         var from = From(newest, scope);
         var resolve = Resolver(db);
+        var first = Scalar(db, "SELECT MIN(local_date) FROM windows_segments WHERE kind <> 'gap'") as string;
 
         var kinds = Kinds(db, from, newest);
         var days = DaysWithData(db, from, newest);
@@ -181,28 +225,34 @@ public sealed class UsageQueries(string databasePath, string? coloursPath = null
             r => (r.GetInt32(0), L(r, 1)), from, newest).ToDictionary(x => x.Item1, x => x.Item2);
 
         // The two stacked charts, each ranked by its OWN measure: the apps you
-        // spend longest in are not the ones you open most.
+        // spend longest in are not the ones you open most. Read over all
+        // history; each range takes its slice below.
+        var all = From(newest, Scope.All);
         var names = new Dictionary<string, string>();
         var time = new List<StackInput>();
-        foreach (var (d, path, ms) in Rows(db, "SELECT local_date, app_path, SUM(duration_ms) FROM windows_segments WHERE kind = 'app' AND local_date >= $p0 AND local_date <= $p1 GROUP BY local_date, app_path",
-                     r => (r.GetString(0), r.GetString(1), L(r, 2)), from, newest))
+        var appKeys = new HashSet<string>();
+        foreach (var (d, path, ms) in Rows(db, "SELECT local_date, app_path, SUM(duration_ms) FROM windows_segments WHERE kind = 'app' GROUP BY local_date, app_path",
+                     r => (r.GetString(0), r.GetString(1), L(r, 2))))
         {
             var n = resolve(path);
             names[n.Key] = n.Name;
             time.Add(new StackInput(d, n.Key, ms));
+            if (string.CompareOrdinal(d, from) >= 0) appKeys.Add(n.Key);
         }
-        var visits = Visits.Stitch(Sessions(db, from, newest, resolve));
-        var opens = Visits.OpensByDay(visits, SessionStarts(db, from, newest));
-        var recorded = daily.Where(p => p.Ms is not null).Select(p => p.Date).ToList();
+        var visits = Visits.Stitch(Sessions(db, all, newest, resolve));
+        var opens = Visits.OpensByDay(visits, SessionStarts(db, all, newest));
+        var recorded = (from == all ? daily : Daily(db, all, newest)).Where(p => p.Ms is not null).Select(p => p.Date).ToList();
 
-        StackData Stacked(IEnumerable<StackInput> rows)
+        Dictionary<int, StackData> Ranged(List<StackInput> rows) => Scope.Ranges.ToDictionary(d => d, d =>
         {
-            var (series, points) = Stack.ByApp(rows, recorded);
+            var start = From(newest, new Scope(d));
+            bool In(string date) => string.CompareOrdinal(date, start) >= 0;
+            var (series, points) = Stack.ByApp(rows.Where(r => In(r.Date)), recorded.Where(In));
             return new StackData(series, series.Select(s => s.Id is null ? "Other" : names.GetValueOrDefault(s.Id, s.Id)).ToList(), points);
-        }
+        });
 
-        return new OverviewData(newest, latest, days > 0 ? kinds.Active / days : 0, kinds.Active, days, names.Count, kinds,
-            daily, Days.FillHours(hourly), Stacked(time), Stacked(opens));
+        return new OverviewData(first, newest, latest, days > 0 ? kinds.Active / days : 0, kinds.Active, days, appKeys.Count, kinds,
+            daily, Days.FillHours(hourly), Ranged(time), Ranged(opens));
     });
 
     /// <summary>Active time per day across all history, for the heat map: days with data only.</summary>
@@ -220,6 +270,7 @@ public sealed class UsageQueries(string databasePath, string? coloursPath = null
         if (newest is null) return new ByAppData([], 0);
         var from = From(newest, scope);
         var resolve = Resolver(db);
+        var hidden = AppPrefs.ReadHidden(db);
 
         var apps = new Dictionary<string, AppRow>();
         var days = new Dictionary<string, HashSet<string>>();
@@ -229,7 +280,7 @@ public sealed class UsageQueries(string databasePath, string? coloursPath = null
             var n = resolve(path);
             if (!apps.TryGetValue(n.Key, out var row))
             {
-                apps[n.Key] = row = new AppRow { Key = n.Key, Name = n.Name, BaseName = n.BaseName, System = n.System };
+                apps[n.Key] = row = new AppRow { Key = n.Key, Name = n.Name, BaseName = n.BaseName, System = n.System, Hidden = hidden.Contains(n.Key) };
                 days[n.Key] = [];
             }
             row.Ms += ms;
@@ -269,17 +320,25 @@ public sealed class UsageQueries(string databasePath, string? coloursPath = null
         var byDate = new Dictionary<string, long>();
         var byHour = new Dictionary<int, long>();
         var byPath = new Dictionary<string, long>();
+        var members = new Dictionary<string, (string Name, long Ms)>();
         foreach (var (path, d, h, dur) in Rows(db, "SELECT app_path, local_date, local_hour, SUM(duration_ms) FROM windows_segments WHERE kind = 'app' AND local_date >= $p0 AND local_date <= $p1 GROUP BY app_path, local_date, local_hour",
                      r => (r.GetString(0), r.GetString(1), r.GetInt32(2), L(r, 3)), from, newest))
         {
             all += dur;
             var n = resolve(path);
             if (n.Key != key) continue;
+            // A merged-in app's rows carry the target's key and name, so any
+            // row names the page; SourceKey says whose they were.
             app = n;
             ms += dur;
             byDate[d] = byDate.GetValueOrDefault(d) + dur;
             byHour[h] = byHour.GetValueOrDefault(h) + dur;
             byPath[path] = byPath.GetValueOrDefault(path) + dur;
+            if (n.SourceKey != key)
+            {
+                var (name, sum) = members.GetValueOrDefault(n.SourceKey, (n.SourceName, 0L));
+                members[n.SourceKey] = (name, sum + dur);
+            }
         }
         if (app is null || ms <= 0) return null;
 
@@ -296,7 +355,9 @@ public sealed class UsageQueries(string databasePath, string? coloursPath = null
             dates.Select(d => new DailyPoint(d, opensByDate.GetValueOrDefault(d))).ToList(),
             Days.FillHours(byHour),
             Days.FillHours(opensByHour.ToDictionary(kv => kv.Key, kv => (long)kv.Value)),
-            byPath.OrderByDescending(kv => kv.Value).Select(kv => new AppIdentity(kv.Key, kv.Value)).ToList());
+            byPath.OrderByDescending(kv => kv.Value).Select(kv => new AppIdentity(kv.Key, kv.Value)).ToList(),
+            newest,
+            members.Select(m => new AppMember(m.Key, m.Value.Name, m.Value.Ms)).OrderByDescending(m => m.Ms).ToList());
     });
 
     /// <summary>Whether anything ever recorded resolves to this key, whatever the range.</summary>
@@ -315,12 +376,12 @@ public sealed class UsageQueries(string databasePath, string? coloursPath = null
         return map;
     });
 
-    /// <summary>The name a raw identity shows, rename applied - the Sync page's "currently in".</summary>
+    /// <summary>The name a raw identity shows, merge and rename applied - the Sync page's "currently in".</summary>
     public string DisplayName(string path)
     {
         var r = AppNames.Resolve(path);
         if (!DatabaseExists) return r.Name;
-        try { return With(db => Renames.Read(db).GetValueOrDefault(r.Key)) ?? r.Name; }
+        try { return With(db => Resolver(db)(path).Name); }
         catch (SqliteException) { return r.Name; }
     }
 

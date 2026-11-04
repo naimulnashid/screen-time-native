@@ -34,19 +34,21 @@ public static class Placeholder
     public static List<(string Date, long Total)> Heat(int days = 100) =>
         Enumerable.Range(0, days).Select(i => (Day(i), (1 + i % 9) * Hour)).ToList();
 
-    private static StackData Stack(long unit)
+    private static StackData Stack(long unit, int days)
     {
         var names = Apps.Append("Other").ToList();
         var series = names.Select((n, i) => new StackSeries(n == "Other" ? null : n, (9 - i) * unit * 100)).ToList();
-        var points = Daily().Select(d => new StackPoint(d.Date, true, names.Select((_, i) => (9 - i) * unit).ToArray())).ToList();
+        var points = Daily(Math.Min(days, 100)).Select(d => new StackPoint(d.Date, true, names.Select((_, i) => (9 - i) * unit).ToArray())).ToList();
         return new StackData(series, names, points);
     }
+
+    private static Dictionary<int, StackData> Ranged(long unit) => Scope.Ranges.ToDictionary(d => d, d => Stack(unit, d));
 
     public static OverviewData Overview()
     {
         var daily = Daily();
-        return new OverviewData(daily[^1].Date, 4 * Hour + 12 * Minute, 6 * Hour + 40 * Minute, 664 * Hour, daily.Count, 24,
-            new KindTotals(664 * Hour, 310 * Hour, 2 * Hour, 1400 * Hour), daily, Hourly(), Stack(20 * Minute), Stack(4));
+        return new OverviewData(daily[0].Date, daily[^1].Date, 4 * Hour + 12 * Minute, 6 * Hour + 40 * Minute, 664 * Hour, daily.Count, 24,
+            new KindTotals(664 * Hour, 310 * Hour, 2 * Hour, 1400 * Hour), daily, Hourly(), Ranged(20 * Minute), Ranged(4));
     }
 
     public static ByAppData ByApp()
@@ -73,7 +75,8 @@ public static class Placeholder
     public static AppDetail App(string key) => new(
         key, "VS Code", "VS Code", false, 180 * Hour, 520, 94, 27.1, 12 * Minute, 3 * Hour,
         Daily(), Daily().Select(d => new DailyPoint(d.Date, 6)).ToList(), Hourly(), Hourly().Select(h => new HourPoint(h.Hour, 5)).ToList(),
-        [new AppIdentity(@"C:\Users\you\AppData\Local\Programs\Microsoft VS Code\Code.exe", 180 * Hour)]);
+        [new AppIdentity(@"C:\Users\you\AppData\Local\Programs\Microsoft VS Code\Code.exe", 180 * Hour)],
+        Day(0), []);
 
     public static SyncData Sync()
     {

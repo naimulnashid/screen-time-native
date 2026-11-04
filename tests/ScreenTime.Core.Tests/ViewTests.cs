@@ -139,6 +139,17 @@ public class ViewTests
     }
 
     [Fact]
+    public void ASpikeIsOneAndAHalfTimesTheMeanOfRecordedDays()
+    {
+        // Mean of the recorded days is 4h; the unrecorded day does not pull it down.
+        List<DailyPoint> days = [new("2026-09-01", 3 * 3_600_000L), new("2026-09-02", null), new("2026-09-03", 3 * 3_600_000L), new("2026-09-04", 6 * 3_600_000L)];
+        Assert.Equal(6 * 3_600_000L, Trend.SpikeThreshold(days));
+        // Under three recorded days there is nothing to compare against.
+        Assert.Null(Trend.SpikeThreshold(days.Take(3)));
+        Assert.Null(Trend.SpikeThreshold([new("a", 0L), new("b", 0L), new("c", 0L)]));
+    }
+
+    [Fact]
     public void PeakNeedsAPositiveWinner()
     {
         Assert.Null(Stack.PeakOf(new[] { new HourPoint(0, 0), new HourPoint(1, 0) }, h => h.Value));

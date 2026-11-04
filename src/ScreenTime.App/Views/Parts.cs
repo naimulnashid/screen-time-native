@@ -12,7 +12,10 @@ namespace ScreenTime.App.Views;
 public static class Parts
 {
     /// <summary>The page's h1 and the line under it.</summary>
-    public static StackPanel PageHead(string title, string? sub, UIElement? before = null, UIElement? after = null, UIElement? titleExtra = null)
+    /// <param name="titleAfter">Beside the h1, after it: an app page's "..." menu.</param>
+    /// <param name="aside">The right end of the sub line: the Overview's span of history held.</param>
+    public static StackPanel PageHead(string title, string? sub, UIElement? before = null, UIElement? after = null, UIElement? titleExtra = null,
+        string? aside = null, UIElement? titleAfter = null)
     {
         var head = new StackPanel { Margin = new Thickness(0, 0, 0, 35) };
         if (before is not null) head.Children.Add(before);
@@ -21,15 +24,54 @@ public static class Parts
         var h1 = Ui.Text(title, 35, 600, spacing: -0.02);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetHeadingLevel(h1, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level1);
         titleRow.Children.Add(h1);
+        if (titleAfter is not null) titleRow.Children.Add(titleAfter);
         head.Children.Add(titleRow);
         if (sub is not null)
         {
             var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 11, Margin = new Thickness(0, 6, 0, 0) };
             line.Children.Add(Ui.Text(sub, 15, 400, Palette.TextMutedBrush, wrap: true));
             if (after is not null) line.Children.Add(after);
-            head.Children.Add(line);
+            if (aside is null)
+            {
+                head.Children.Add(line);
+            }
+            else
+            {
+                // Freshness on the left, the span of history on the right.
+                var row = new Microsoft.UI.Xaml.Controls.Grid { ColumnSpacing = 24 };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                row.Children.Add(line);
+                var right = Ui.Text(aside, 15, 400, Palette.TextMutedBrush);
+                right.Margin = new Thickness(0, 6, 0, 0);
+                right.VerticalAlignment = VerticalAlignment.Top;
+                Microsoft.UI.Xaml.Controls.Grid.SetColumn(right, 1);
+                row.Children.Add(right);
+                head.Children.Add(row);
+            }
         }
         return head;
+    }
+
+    /// <summary>
+    /// A chart's own range, 7d / 30d / 90d / All, in its panel's head: the web
+    /// dashboard's RangeMenu. It replaced the top bar's chips (0.2.0), which
+    /// scoped every page; only the by-day charts carry one.
+    /// </summary>
+    public static StackPanel RangeBox(int days, Action<int> changed, string label)
+    {
+        var box = new ComboBox { FontFamily = Fonts.Sans, FontSize = 14, MinWidth = 86, VerticalAlignment = VerticalAlignment.Center };
+        foreach (var d in Core.Query.Scope.Ranges) box.Items.Add(new Core.Query.Scope(d).Label);
+        box.SelectedIndex = Math.Max(0, Array.IndexOf(Core.Query.Scope.Ranges, days));
+        box.SelectionChanged += (_, _) =>
+        {
+            if (box.SelectedIndex >= 0 && Core.Query.Scope.Ranges[box.SelectedIndex] != days) changed(Core.Query.Scope.Ranges[box.SelectedIndex]);
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, label);
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Top };
+        row.Children.Add(new FontIcon { Glyph = "", FontSize = 14, Foreground = Palette.TextMutedBrush, VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(box);
+        return row;
     }
 
     /// <summary>The small uppercase label over a figure.</summary>

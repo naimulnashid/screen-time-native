@@ -15,16 +15,23 @@ namespace ScreenTime.App.Views;
 /// Shape of the day, and "Where the time went" LAST - it answers whether the
 /// numbers can be believed, not how the day was spent.
 /// </summary>
+/// <remarks>
+/// Every figure covers all history. The two stacks carry their own range
+/// menu, opening on 30 days, and each range arrives ready-made with its own
+/// top apps, so the menu only picks one.
+/// </remarks>
 public sealed class OverviewPage(PageContext ctx) : IPage
 {
     private OverviewData? _data;
     private List<(string Date, long Total)> _heat = [];
     private long _rows;
+    private int _timeRange = Scope.DefaultChartDays;
+    private int _opensRange = Scope.DefaultChartDays;
 
     public void Load()
     {
         var q = ctx.State.Queries!;
-        _data = q.Overview(ctx.State.Scope);
+        _data = q.Overview(Scope.All);
         _heat = q.HeatmapDays();
         _rows = _data.LatestDate is null ? q.RowCount() : 1;
     }
@@ -42,67 +49,79 @@ public sealed class OverviewPage(PageContext ctx) : IPage
         var state = ctx.State;
         var page = new StackPanel();
 
-        if (data.LatestDate is null)
-        {
-            if (_rows == 0) return Shell.NoData(ctx);
-            var all = Ui.Chip("Show everything", false);
-            all.Click += (_, _) => state.SetScope(Scope.All);
-            page.Children.Add(Parts.Empty("Nothing in this range", "There is history stored, but none in the selected range. Try a longer one.", all));
-            return page;
-        }
+        // All history: no newest day means nothing but gaps was ever recorded.
+        if (data.LatestDate is null) return Shell.NoData(ctx);
 
         // ---- Head: which day the numbers describe, and how long ago they
         // last moved - so "quiet day" and "the sampler died" never look alike.
+        // The span of history held sits at the right of the same line.
         var sub = $"Latest data {Format.DayLong(data.LatestDate)}";
         if (state.Sync?.HoursSinceSuccess is { } h) sub += $" · collected {Format.Relative(h)}";
         var stopped = !state.Sampler.Alive && state.Sampler.Updated is not null;
-        page.Children.Add(Parts.PageHead(state.Device.Label, sub, after: stopped ? Ui.Badge("not recording", Ui.BadgeKind.Bad) : null));
+        var days = $"{data.DaysWithData} day{(data.DaysWithData == 1 ? "" : "s")}";
+        var span = data.FirstDate is { } first ? $"{Format.DayShort(first)} – {Format.DayShort(data.LatestDate)} · {days}" : null;
+        page.Children.Add(Parts.PageHead(state.Device.Label, sub, after: stopped ? Ui.Badge("not recording", Ui.BadgeKind.Bad) : null, aside: span));
 
         // ---- Score cards. Averaged over days WITH DATA, never the range
         // length: dividing by 30 when the sampler has run for two of them
         // reports a fifteenth of the truth.
         var isToday = data.LatestDate == Core.Data.Time.LocalToday();
-        var days = $"{data.DaysWithData} day{(data.DaysWithData == 1 ? "" : "s")}";
         var cards = Parts.Grid(300,
             Parts.StatCard(isToday ? "Today" : "Latest day", data.Latest, isToday ? "so far" : Format.DayShort(data.LatestDate), accent: true),
             Parts.StatCard("Daily average", data.DailyAverage, $"over {days} with data", delay: 60),
-            Parts.StatCard("Range total", data.RangeTotal, $"{data.AppCount} app{(data.AppCount == 1 ? "" : "s")}", delay: 120));
+            Parts.StatCard("All", data.Total, $"{data.AppCount} app{(data.AppCount == 1 ? "" : "s")}", delay: 120));
         cards.Margin = new Thickness(0, 0, 0, 18.4);
         page.Children.Add(cards);
 
         // ---- Daily trend
         var recorded = data.Daily.Where(d => d.Ms is not null).ToList();
         var heaviest = Stack.PeakOf(recorded, d => d.Ms ?? 0);
-        page.Children.Add(Ui.Panel("Daily trend", $"Active time per day across {days} with data. Asleep time is deliberately not drawn.",
+        var spikes = Trend.SpikeThreshold(data.Daily) is { } over ? recorded.Count(d => d.Ms > over) : 0;
+        page.Children.Add(Ui.Panel("Daily trend",
+            $"Active time per day across {days} with data{(spikes > 0 ? $" · {spikes} day{(spikes == 1 ? "" : "s")} well above trend" : "")}. Asleep time is deliberately not drawn.",
             heaviest is null ? null : Parts.Callout("Heaviest day", Format.DayShort(heaviest.Date), Format.Duration(heaviest.Ms ?? 0)),
             data.Daily.Count > 1 ? new TrendChart(data.Daily) : Parts.Note("One day of data so far. The trend appears once the sampler has run across more than one day.")));
 
         // ---- Activity
         page.Children.Add(Ui.Panel("Activity",
-            "Active time per day, whatever the range above. Outlined days were never recorded - before the sampler existed, or while it was not running - which is not the same as a quiet day.",
+            "Active time per day. Outlined days were never recorded - before the sampler existed, or while it was not running - which is not the same as a quiet day.",
             null, ActivityBody()));
 
-        // ---- The two stacks, each ranked by its own measure.
-        page.Children.Add(StackCard(data.TimeByApp, Measure.Time, "Top apps by day", "Active time per day, top 8 apps stacked; everything else grouped as Other.", "Top app"));
-        page.Children.Add(StackCard(data.OpensByApp, Measure.Count, "Most opened by day", "Opens per day, top 8 apps stacked; everything else grouped as Other.", "Most opened"));
+        // ---- The two stacks, each ranked by its own measure, each with its own range.
+        page.Children.Add(StackCard(data.TimeByApp, _timeRange, d => _timeRange = d, Measure.Time, "Top apps by day", "Active time per day, top 8 apps stacked; everything else grouped as Other."));
+        page.Children.Add(StackCard(data.OpensByApp, _opensRange, d => _opensRange = d, Measure.Count, "Most opened by day", "Opens per day, top 8 apps stacked; everything else grouped as Other."));
 
         // ---- Shape of the day
-        page.Children.Add(HourPanel(data.Hourly, Measure.Time, "Shape of the day", "Active time by hour of day, summed across the range."));
+        page.Children.Add(HourPanel(data.Hourly, Measure.Time, "Shape of the day", "Active time by hour of day, summed over all history."));
 
         // ---- Where the time went
         page.Children.Add(Ui.Panel("Where the time went", "Every millisecond the sampler accounted for, and how.", null, KindsBody(data.Kinds)));
         return page;
     }
 
-    private Border StackCard(StackData stack, Measure measure, string title, string sub, string calloutLabel)
+    /// <summary>
+    /// A stacked chart with its own range menu. The range's leading app sits
+    /// in the subtitle, because the menu takes the head's right slot.
+    /// </summary>
+    private Border StackCard(IReadOnlyDictionary<int, StackData> ranges, int days, Action<int> setDays, Measure measure, string title, string sub)
     {
+        var stack = ranges.GetValueOrDefault(days) ?? StackData.Empty;
         var top = stack.Series.Select((s, i) => (s, i)).FirstOrDefault(x => x.s.Id is not null);
-        var callout = top.s is null ? null : Parts.Callout(calloutLabel, stack.Names[top.i], Axis.Value(top.s.Total, measure));
-        if (stack.Points.Count < 2) return Ui.Panel(title, sub, callout, Parts.Note("One day of data so far."));
+        if (top.s is not null)
+            sub += measure == Measure.Time
+                ? $" Top app {stack.Names[top.i]}, {Format.Duration(top.s.Total)}."
+                : $" Most opened {stack.Names[top.i]}, {Format.Opens(top.s.Total)}.";
+        var menu = Parts.RangeBox(days, d =>
+        {
+            setDays(d);
+            ctx.Redraw();
+        }, $"{title} range");
+        if (stack.Points.Count < 2)
+            return Ui.Panel(title, sub, menu, Parts.Note(stack.Points.Count == 1 ? "One day of data in this range." : "Nothing recorded in this range."));
         var body = new Microsoft.UI.Xaml.Controls.StackPanel();
         body.Children.Add(new StackedAreaChart(stack, measure, ctx.State.Colors));
         body.Children.Add(AppIconView.Legend(stack.Names, ctx.State.Colors, ctx.State.Icons));
-        return Ui.Panel(title, sub, callout, body);
+        return Ui.Panel(title, sub, menu, body);
     }
 
     private Microsoft.UI.Xaml.Controls.StackPanel ActivityBody()

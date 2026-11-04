@@ -17,17 +17,27 @@ namespace ScreenTime.App.Charts;
 /// as a broken chart and a shaded "Not recorded" band read as clutter. The day
 /// is still null in the data, so the tooltip says "Not recorded" rather than
 /// "0s", and nothing downstream averages it in.
+/// <para>A day well above trend (<see cref="Trend.SpikeThreshold"/>) carries a
+/// point in the line's own colour and says so in its tooltip in the warning
+/// colour; the card's subtitle counts them.</para>
 /// </remarks>
 public sealed class TrendChart : ChartSurface
 {
     private const double Top = 8, Right = 8, Bottom = 4, Left = 4, YAxisWidth = 56, XAxisHeight = 28;
 
     private readonly IReadOnlyList<DailyPoint> _days;
+    private readonly long? _spikeOver;
     private readonly List<Point> _points = [];
     private Line? _cursor;
     private Ellipse? _activeDot;
 
-    public TrendChart(IReadOnlyList<DailyPoint> daily, double height = 300, bool animate = true) : base(height, animate) => _days = daily;
+    public TrendChart(IReadOnlyList<DailyPoint> daily, double height = 300, bool animate = true) : base(height, animate)
+    {
+        _days = daily;
+        _spikeOver = Trend.SpikeThreshold(daily);
+    }
+
+    private bool Spike(DailyPoint day) => _spikeOver is { } over && day.Ms > over;
 
     protected override void Draw(bool animate)
     {
@@ -76,6 +86,11 @@ public sealed class TrendChart : ChartSurface
                 StrokeLineJoin = PenLineJoin.Round,
             });
         }
+        // A point marks each day well above trend, in the line's own colour:
+        // the line says where, the point says "this one". The warning colour
+        // stays in the tooltip's wording, so the plot keeps one hue.
+        for (var i = 0; i < _points.Count && _points.Count > 1; i++)
+            if (Spike(_days[i])) layer.Children.Add(Dot(_points[i], 4.5, Palette.AccentBrush));
         Canvas.Children.Add(layer);
         if (animate) Axes.RevealLeft(layer, W);
 
@@ -86,9 +101,11 @@ public sealed class TrendChart : ChartSurface
         Canvas.Children.Add(_activeDot);
     }
 
+    // The ring takes the card's colour, not the page's: on the light theme's
+    // grey page the two differ, and a page-coloured ring showed as a halo.
     private static Ellipse Dot(Point at, double r, Brush fill)
     {
-        var dot = new Ellipse { Width = r * 2, Height = r * 2, Fill = fill, Stroke = Palette.BgBrush, StrokeThickness = 2 };
+        var dot = new Ellipse { Width = r * 2, Height = r * 2, Fill = fill, Stroke = Palette.SurfaceBrush, StrokeThickness = 2 };
         Microsoft.UI.Xaml.Controls.Canvas.SetLeft(dot, at.X - r);
         Microsoft.UI.Xaml.Controls.Canvas.SetTop(dot, at.Y - r);
         return dot;
@@ -112,6 +129,7 @@ public sealed class TrendChart : ChartSurface
         var body = ChartTooltip.Stack();
         body.Children.Add(ChartTooltip.Title(Format.DayShort(day.Date)));
         body.Children.Add(day.Ms is { } ms ? Ui.Text(Format.Duration(ms), 17, 650, Palette.AccentBrightBrush, numeric: true) : Axes.NoData());
+        if (Spike(day)) body.Children.Add(Ui.Text("Well above trend", 13, 500, Palette.WarnBrush));
         Tooltip.Show(body, at);
     }
 

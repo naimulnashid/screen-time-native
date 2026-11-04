@@ -19,18 +19,22 @@ and for how long, nothing more.
 ## What it shows
 
 - **Overview**: today (or the latest day), the daily average over days with
-  data, and the range total; the daily trend; a six-month activity heat map
-  (Expand for the full history); the top apps by day and the most opened by
-  day; the shape of the day by hour; and **where the time went** - active,
-  locked, unattributed, asleep.
+  data, and the total over all history; the daily trend, with a point on each
+  day well above trend; a six-month activity heat map (Expand for the full
+  history); the top apps by day and the most opened by day; the shape of the
+  day by hour; and **where the time went** - active, locked, unattributed,
+  asleep.
 - **By App**: the top apps by time and by opens, and every app with its time,
-  opens, days and share. Apps with a minute or more open a detail page: time
-  and opens per day and per hour, the typical and the longest session, and
-  every recorded path merged into the app.
+  opens and days, as a table or a grid of cards. Hide an app from this page,
+  or merge one app into another. Apps with a minute or more open a detail
+  page: time and opens per day and per hour, the typical and the longest
+  session, every recorded path merged into the app, and the apps you merged
+  into it.
 - **Sync Status**: whether the sampler is recording right now, the run
   history, and the scheduled task as Windows reports it.
 
-Range chips (7d / 30d / 90d / All) apply to every page.
+Every page covers all history. The day-by-day charts each carry their own
+range menu (7d / 30d / 90d / All), opening on 30 days.
 
 An **open** is a visit, not a focus event: alt-tabbing away and straight back
 is one open, and leaving for another app and returning is two.
@@ -55,14 +59,14 @@ nobody's real usage.
 </details>
 
 <details>
-<summary><b>By App</b> - top apps, most opened, and every app with its share</summary>
+<summary><b>By App</b> - top apps, most opened, and every app as a table or a grid</summary>
 
 ![By App](docs/screenshots/by-app.webp)
 
 </details>
 
 <details>
-<summary><b>App detail</b> - time and opens per day and per hour, sessions, merged paths</summary>
+<summary><b>App detail</b> - time and opens per day (with a range) and per hour, sessions, merged paths</summary>
 
 ![App detail](docs/screenshots/app-detail.webp)
 
@@ -139,12 +143,20 @@ folder. Everything recorded before the reset is still there.
   Recording does not depend on it.
 - **Notifications** when recording stops or a save fails (settings or tray).
 - **Start at login**: settings menu or tray. It starts straight to the tray.
-- **Rename an app, or change its colour**: the pencil beside its name (hover a
-  table row). Pick a colour or type its hex code; "Default colour" goes back.
-  Both are stored with the history.
-- **Logos**: in the same pencil menu choose **Set logo…**, or drop an image on
-  the app's name. Files live in the data folder's `logos\`, named after the
-  app (`VS Code.svg`); dropping files there works too.
+- **Rename an app, or change its colour**: **Rename or recolour…** in the
+  "..." beside its name (hover a row or a card; always shown on an app's page).
+  Pick a colour or type its hex code; "Default colour" goes back. Both are
+  stored with the history.
+- **Logos**: **Set logo…** in the same menu, or drop an image on the app's
+  name. Files live in the data folder's `logos\`, named after the app
+  (`VS Code.svg`); dropping files there works too.
+- **Hide an app** from By App: **Hide from this page** in its "..." menu. It
+  still counts in every total; **Show N hidden** under the list brings it back.
+- **Merge one app into another**: **Merge into…** in its "..." menu. Its time
+  and opens then count as the other app's on every page; **Separate** on that
+  app's Merged apps card undoes it.
+- **Table or Grid** on By App (remembered). **Backspace** on an app's page or
+  on Activity goes back.
 - **Light or dark**: Settings > Theme, or follow Windows' setting.
 - **Click a Top apps bar** to open that app's page.
 - **This PC…** in the settings menu sets the name on the overview.

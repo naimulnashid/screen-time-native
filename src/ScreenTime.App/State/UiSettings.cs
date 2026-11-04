@@ -1,6 +1,5 @@
 using System.Text.Json;
 using ScreenTime.Core;
-using ScreenTime.Core.Query;
 
 namespace ScreenTime.App.State;
 
@@ -11,8 +10,11 @@ namespace ScreenTime.App.State;
 /// </summary>
 public sealed class UiSettings
 {
-    /// <summary>The range chips. Opens on All: the app leads with everything it holds.</summary>
-    public int ScopeDays { get; set; } = Scope.AllDays;
+    /// <summary>
+    /// By App's list: "table" or "grid". The range chips that sat in the top
+    /// bar (ScopeDays) went in 0.2.0; an old file's value is ignored on load.
+    /// </summary>
+    public string AppsView { get; set; } = "table";
 
     /// <summary>Re-read the database when the sampler saves to it.</summary>
     public bool AutoRefresh { get; set; } = true;

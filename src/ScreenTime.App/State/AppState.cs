@@ -18,7 +18,7 @@ namespace ScreenTime.App.State;
 /// times in a second.</para>
 /// <para>Queries run off the UI thread, and each page asks for its own data;
 /// this class only holds what every page shares: the device settings, the
-/// range, the colour map, the logos and the health of collection.</para>
+/// By App view, the colour map, the logos and the health of collection.</para>
 /// </remarks>
 public sealed class AppState : IDisposable
 {
@@ -32,7 +32,6 @@ public sealed class AppState : IDisposable
     {
         _ui = ui;
         _settings = settings;
-        Scope = new Scope(Math.Clamp(settings.ScopeDays, 1, Scope.AllDays));
         Logos = new LogoStore(ui);
         Logos.Changed += () => _ = ReloadAsync();
         Open();
@@ -44,7 +43,20 @@ public sealed class AppState : IDisposable
 
     public UsageQueries? Queries { get; private set; }
 
-    public Scope Scope { get; private set; }
+    /// <summary>
+    /// By App's list as a table or a grid, remembered with the app's other
+    /// preferences. Pages have no range any more: every figure covers all
+    /// history, and the by-day charts carry their own.
+    /// </summary>
+    public string AppsView
+    {
+        get => _settings.AppsView == "grid" ? "grid" : "table";
+        set
+        {
+            _settings.AppsView = value;
+            _settings.Save();
+        }
+    }
 
     public LogoStore Logos { get; }
 
@@ -106,16 +118,6 @@ public sealed class AppState : IDisposable
         {
             // Unwatchable: F5 still works.
         }
-    }
-
-    public void SetScope(Scope scope)
-    {
-        if (scope == Scope) return;
-        Scope = scope;
-        _settings.ScopeDays = scope.Days;
-        _settings.Save();
-        Version++;
-        Changed?.Invoke();
     }
 
     public void SaveDevice(DeviceSettings device)
@@ -210,7 +212,25 @@ public sealed class AppState : IDisposable
                    (SELECT COUNT(*) || ':' || COALESCE(MAX(updated_at), '') FROM app_renames) || '|' ||
                    (SELECT COUNT(*) || ':' || COALESCE(MAX(updated_at), '') FROM app_colours)
             """;
-        return cmd.ExecuteScalar() as string ?? "";
+        var signature = cmd.ExecuteScalar() as string ?? "";
+        // Apart, because a database no schema-2 write path has touched yet has
+        // no app_hidden or app_merges table, and the query above must not fail for it.
+        foreach (var sql in new[]
+                 {
+                     "SELECT COUNT(*) || ':' || COALESCE(MAX(hidden_at), '') FROM app_hidden",
+                     "SELECT COUNT(*) || ':' || COALESCE(MAX(updated_at), '') FROM app_merges",
+                 })
+        {
+            try
+            {
+                cmd.CommandText = sql;
+                signature += "|" + (cmd.ExecuteScalar() as string ?? "");
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException)
+            {
+            }
+        }
+        return signature;
     }
 
     /// <summary>
