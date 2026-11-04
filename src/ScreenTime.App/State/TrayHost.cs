@@ -22,7 +22,12 @@ public sealed class TrayHost : IDisposable
     public TrayHost(AppState state, UiSettings settings, Action open, Action syncNow, Action exit)
     {
         _icon = new Icon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"), 16, 16);
-        _tray = new TrayIconWithContextMenu("ScreenTimeNative.Tray")
+        // The id is per exe path. Windows binds a tray icon's id to the exe
+        // that first registered it and silently refuses it from any other:
+        // once a Debug build has run, the installed app comes up with no tray
+        // icon at all (HKCU\Control Panel\NotifyIconSettings holds the Debug
+        // path), and closed to the tray it cannot be brought back.
+        _tray = new TrayIconWithContextMenu($"ScreenTimeNative.Tray|{Environment.ProcessPath}")
         {
             Icon = _icon.Handle,
             ToolTip = "Screen Time",
