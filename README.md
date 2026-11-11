@@ -157,8 +157,11 @@ folder. Everything recorded before the reset is still there.
   away, instead of at its next quarter hour.
 - **Tray**: closing the window keeps the app in the notification area, with
   today's time in its tooltip. Right-click it for Sync now, the options and Exit.
-  Recording does not depend on it.
+  Recording does not depend on it. The icon is a small process of its own
+  (15 to 21 MB of private memory on the author's PC, measured 2026-11-11);
+  the window is another, which ends when it closes and gives its memory back.
 - **Notifications** when recording stops or a save fails (settings or tray).
+  They come from the tray icon, so they need it running.
 - **Start at login**: settings menu or tray. It starts straight to the tray.
 - **Rename an app, or change its colour**: **Rename or recolour…** in the
   "..." beside its name (hover a row or a card; always shown on an app's page).

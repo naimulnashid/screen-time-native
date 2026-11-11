@@ -86,9 +86,6 @@ public sealed class AppState : IDisposable
     /// <summary>Raised on the UI thread after a reload.</summary>
     public event Action? Changed;
 
-    /// <summary>Raised on the UI thread for a problem worth a notification: title, message.</summary>
-    public event Action<string, string>? Problem;
-
     public void OnUi(Action action) => _ui.TryEnqueue(() => action());
 
     /// <summary>(Re)reads where the data folder is, and watches its database.</summary>
@@ -111,8 +108,11 @@ public sealed class AppState : IDisposable
         {
             Directory.CreateDirectory(live);
             _watcher = new FileSystemWatcher(live, "screen-time.db*") { EnableRaisingEvents = true, NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName };
-            _watcher.Changed += (_, _) => Touch();
-            _watcher.Created += (_, _) => Touch();
+            // Not the -shm file: every reader of a WAL database writes it, this
+            // process's own reload included, so each reload scheduled the
+            // next - one every three seconds for as long as the window was up.
+            _watcher.Changed += (_, e) => { if (!TrayProcess.IsSharedMemory(e)) Touch(); };
+            _watcher.Created += (_, e) => { if (!TrayProcess.IsSharedMemory(e)) Touch(); };
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
@@ -164,7 +164,6 @@ public sealed class AppState : IDisposable
             {
                 Version++;
                 Changed?.Invoke();
-                CheckHealth();
                 return;
             }
             var logos = Logos.Folder;
@@ -190,7 +189,6 @@ public sealed class AppState : IDisposable
                 Version++;
                 Changed?.Invoke();
             }
-            CheckHealth();
         }
         catch (Exception ex) when (ex is Microsoft.Data.Sqlite.SqliteException or IOException)
         {
@@ -246,36 +244,8 @@ public sealed class AppState : IDisposable
         return result;
     }
 
-    /// <summary>
-    /// One notification per failed ingest, and one per stopped sampler. A
-    /// sampler that has stopped is the failure that matters most here: nothing
-    /// backfills, so every minute it is down is a minute lost for good.
-    /// </summary>
-    private void CheckHealth()
-    {
-        if (!_settings.NotifyProblems) return;
-        var newest = Sync?.Runs.FirstOrDefault();
-        if (newest is { Status: "failed" } && newest.Id > _settings.NotifiedFailureId)
-        {
-            _settings.NotifiedFailureId = newest.Id;
-            _settings.Save();
-            Problem?.Invoke("Screen Time could not save its data", Trim(newest.Error ?? "The ingest reported a failure. Open Sync Status for details."));
-            return;
-        }
-        // A heartbeat that never existed is a sampler not installed, not one
-        // that stopped: the Sync page says so, without a notification.
-        if (!Sampler.Alive && Sampler.Updated is { } since && Sampler.StaleSeconds > 300 && since != _settings.NotifiedStallSince)
-        {
-            _settings.NotifiedStallSince = since;
-            _settings.Save();
-            Problem?.Invoke("Screen Time has stopped recording", $"The sampler's last heartbeat was {Core.View.Format.DateTimeLocal(since)}. Time passing now is not being recorded. Open Sync Status.");
-        }
-    }
-
-    /// <summary>The sampler can stop with no write at all, so health is also checked on a clock.</summary>
-    public void CheckHealthNow() => _ = ReloadAsync(onlyIfChanged: true);
-
-    private static string Trim(string s) => s.Length > 200 ? s[..197] + "..." : s;
+    // The problem notifications (a failed save, a stopped sampler) are the
+    // tray process's: see TrayProcess.CheckHealth.
 
     public void Dispose()
     {

@@ -52,6 +52,6 @@ foreach ($view in $Views) {
     [IO.File]::WriteAllText((Join-Path $samplerDir 'sampler-status.json'), $hb, (New-Object Text.UTF8Encoding($false)))
   }
   # Windows PowerShell 5.1, which has System.Drawing built in.
-  powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Capture-Window.ps1') -Exe $exe -Out (Join-Path $root "screenshots\$name.png") @sizing -WaitSeconds $WaitSeconds -HoverX $hoverX -HoverY $hoverY @clickArg -Close
+  powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Capture-Window.ps1') -Exe $exe -Arguments '--dashboard' -Out (Join-Path $root "screenshots\$name.png") @sizing -WaitSeconds $WaitSeconds -HoverX $hoverX -HoverY $hoverY @clickArg -Close
   Start-Sleep -Milliseconds 800
 }

@@ -59,10 +59,27 @@ public sealed class UiSettings
         return new UiSettings();
     }
 
+    /// <summary>
+    /// Set by the tray process. The file has two writers: the tray owns what
+    /// has been notified (<see cref="TrayNoteShown"/>,
+    /// <see cref="NotifiedFailureId"/>, <see cref="NotifiedStallSince"/>) and
+    /// loads the file afresh before it changes anything; the window keeps its
+    /// copy for as long as it is open, so its saves take those three from the
+    /// file rather than write back what they were when it opened.
+    /// </summary>
+    public static bool IsTray { get; set; }
+
     public void Save()
     {
         try
         {
+            if (!IsTray)
+            {
+                var onDisk = Load();
+                TrayNoteShown = onDisk.TrayNoteShown;
+                NotifiedFailureId = onDisk.NotifiedFailureId;
+                NotifiedStallSince = onDisk.NotifiedStallSince;
+            }
             Directory.CreateDirectory(AppPaths.LocalDir);
             File.WriteAllText(FilePath, JsonSerializer.Serialize(this, Options));
         }
